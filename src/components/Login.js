@@ -13,7 +13,7 @@ function Login({ onLoginSuccess }) {
     setError('');
 
     try {
-      const response = await API.post('/api/login', { username, password });
+      const response = await API.post('/login', { username, password });
       
       if (response.data.status === 'success') {
         localStorage.setItem('user', JSON.stringify(response.data.user));
