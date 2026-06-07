@@ -7,7 +7,6 @@ function KonfirmasiTransaksi({ user, onLogout, onNavigate }) {
   const [selectedPengajuan, setSelectedPengajuan] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [catatanTolak, setCatatanTolak] = useState("");
-  const [message, setMessage] = useState("");
 
   // Ambil daftar pengajuan transaksi yang menunggu konfirmasi
   const fetchPengajuan = async () => {
@@ -106,14 +105,7 @@ function KonfirmasiTransaksi({ user, onLogout, onNavigate }) {
         </div>
       </div>
 
-      {/* Notifikasi */}
-      {message && (
-        <div
-          className={`alert ${message.includes("✅") ? "alert-success" : "alert-danger"} mb-3`}
-        >
-          {message}
-        </div>
-      )}
+     
 
       {/* Info Notifikasi */}
       {pengajuanList.length > 0 && (
