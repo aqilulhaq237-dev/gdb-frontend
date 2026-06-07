@@ -425,9 +425,9 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
                     <td className="text-center">{t.tanggal}</td>
                     <td className="text-center">
                       <span
-                        className={`badge ${t.status === "Selesai" || t.status === "Valid" ? "bg-success" : "bg-warning text-dark"}`}
+                        className={`badge ${t.status_validasi === "Valid" || t.status === "Selesai" ? "bg-success" : "bg-warning text-dark"}`}
                       >
-                        {t.status === "Valid" || t.status === "Selesai"
+                        {t.status_validasi === "Valid" || t.status === "Selesai"
                           ? "✅ Selesai"
                           : "⏳ Pending"}
                       </span>

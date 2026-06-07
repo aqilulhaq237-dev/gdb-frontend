@@ -49,15 +49,14 @@ function KonfirmasiTransaksi({ user, onLogout, onNavigate }) {
 
   // Handle konfirmasi tolak
   const handleTolak = async (id_pengajuan) => {
-    const catatan = prompt("Alasan penolakan:");
-    if (!catatan) return;
-
     try {
       const response = await API.post(`/pengajuan/${id_pengajuan}/tolak`, {
-        catatan,
+        catatan: catatanTolak,
       });
       if (response.data.status === "success") {
         alert("✅ Pengajuan ditolak!");
+        setShowModal(false);
+        setCatatanTolak("");
         fetchPengajuan();
       }
     } catch (error) {
@@ -161,7 +160,7 @@ function KonfirmasiTransaksi({ user, onLogout, onNavigate }) {
                       <td className="text-danger">
                         {formatRupiah(item.nominal)}
                       </td>
-                      <td>{item.pengaju || "-"}</td>
+                      <td>{item.nama_pengaju || "-"}</td>
                       <td>{item.alasan || "-"}</td>
                       <td>
                         <div className="d-flex gap-2">
@@ -240,7 +239,13 @@ function KonfirmasiTransaksi({ user, onLogout, onNavigate }) {
                 <button
                   type="button"
                   className="btn btn-danger"
-                  onClick={handleTolak}
+                  onClick={() => {
+                    if (!catatanTolak) {
+                      alert("⚠️ Isi catatan penolakan!");
+                      return;
+                    }
+                    handleTolak(selectedPengajuan.id_pengajuan);
+                  }}
                 >
                   Konfirmasi Tolak
                 </button>
