@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import API from '../services/api';
+import React, { useEffect, useState } from "react";
+import API from "../services/api";
 
 function TransaksiKas({ user, onLogout, onNavigate }) {
   const [transaksiList, setTransaksiList] = useState([]);
@@ -9,21 +9,21 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
-    id_program: '',
-    jenis: 'Masuk',
-    nominal: '',
-    tanggal: new Date().toISOString().split('T')[0],
-    keterangan: '',
-    status_bukti: 'ada',
+    id_program: "",
+    jenis: "Masuk",
+    nominal: "",
+    tanggal: new Date().toISOString().split("T")[0],
+    keterangan: "",
+    status_bukti: "ada",
     bukti_file: null,
-    status: 'Selesai'
+    status: "Selesai",
   });
   const [selectedRAB, setSelectedRAB] = useState(null);
   const [periodeAktif, setPeriodeAktif] = useState([]);
   const [saving, setSaving] = useState(false);
 
   // Format nominal dengan titik
-  const [displayNominal, setDisplayNominal] = useState('');
+  const [displayNominal, setDisplayNominal] = useState("");
 
   useEffect(() => {
     fetchData();
@@ -33,31 +33,31 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
     setLoading(true);
     try {
       // Ambil periode aktif
-      const periodeRes = await API.get('/periode/aktif');
+      const periodeRes = await API.get("/periode/aktif");
       const periodeData = periodeRes.data.data || [];
       setPeriodeAktif(periodeData);
 
       // Ambil program kerja sesuai periode aktif
-      const progRes = await API.get('/program-kerja');
-      if (progRes.data.status === 'success') {
+      const progRes = await API.get("/program-kerja");
+      if (progRes.data.status === "success") {
         let programs = progRes.data.data.filter(
-          prog => prog.status_program !== 'Selesai'
+          (prog) => prog.status_program !== "Selesai",
         );
         if (periodeData.length > 0) {
-          programs = programs.filter(prog =>
-            periodeData.some(p => prog.periode?.toString() === p.toString())
+          programs = programs.filter((prog) =>
+            periodeData.some((p) => prog.periode?.toString() === p.toString()),
           );
         }
         setProgramList(programs);
       }
 
       // Ambil transaksi
-      const transRes = await API.get('/transaksi');
-      if (transRes.data.status === 'success') {
+      const transRes = await API.get("/transaksi");
+      if (transRes.data.status === "success") {
         setTransaksiList(transRes.data.data);
       }
     } catch (error) {
-      console.error('Gagal memuat data:', error);
+      console.error("Gagal memuat data:", error);
     } finally {
       setLoading(false);
     }
@@ -66,51 +66,53 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
   // Fetch RAB ketika program dipilih (untuk pengeluaran)
   const fetchRAB = async (id_program) => {
     try {
-      const response = await API.get('/rab');
-      if (response.data.status === 'success') {
-        const filtered = response.data.data.filter(r => r.id_program == id_program);
+      const response = await API.get("/rab");
+      if (response.data.status === "success") {
+        const filtered = response.data.data.filter(
+          (r) => r.id_program == id_program,
+        );
         setRabList(filtered);
       }
     } catch (error) {
-      console.error('Gagal memuat RAB:', error);
+      console.error("Gagal memuat RAB:", error);
     }
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
-    if (name === 'id_program') {
+
+    if (name === "id_program") {
       setFormData({ ...formData, id_program: value });
-      if (formData.jenis === 'Keluar') {
+      if (formData.jenis === "Keluar") {
         fetchRAB(value);
       }
       setSelectedRAB(null);
-    } else if (name === 'jenis') {
-      setFormData({ 
-        ...formData, 
+    } else if (name === "jenis") {
+      setFormData({
+        ...formData,
         jenis: value,
-        id_program: '',
-        nominal: '',
-        status: value === 'Masuk' ? 'Selesai' : 'Pending',
-        status_bukti: 'ada'
+        id_program: "",
+        nominal: "",
+        status: value === "Masuk" ? "Selesai" : "Pending",
+        status_bukti: "ada",
       });
-      setDisplayNominal('');
+      setDisplayNominal("");
       setRabList([]);
       setSelectedRAB(null);
-    } else if (name === 'nominal') {
+    } else if (name === "nominal") {
       // Hapus titik dan karakter non-digit
-      const rawValue = value.replace(/\D/g, '');
+      const rawValue = value.replace(/\D/g, "");
       const numberValue = parseInt(rawValue) || 0;
       setFormData({ ...formData, nominal: numberValue });
       setDisplayNominal(formatNominal(numberValue));
-    } else if (name === 'status_bukti') {
+    } else if (name === "status_bukti") {
       setFormData({
         ...formData,
         status_bukti: value,
-        status: value === 'ada' ? 'Selesai' : 'Pending',
-        bukti_file: value === 'tidak_ada' ? null : formData.bukti_file
+        status: value === "ada" ? "Selesai" : "Pending",
+        bukti_file: value === "tidak_ada" ? null : formData.bukti_file,
       });
-    } else if (name === 'bukti_file') {
+    } else if (name === "bukti_file") {
       const file = e.target.files[0];
       if (file) {
         // Kompres jika > 500KB
@@ -133,10 +135,10 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
-        const canvas = document.createElement('canvas');
+        const canvas = document.createElement("canvas");
         let width = img.width;
         let height = img.height;
-        
+
         // Resize jika terlalu besar
         const maxSize = 1024;
         if (width > maxSize || height > maxSize) {
@@ -148,19 +150,23 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
             height = maxSize;
           }
         }
-        
+
         canvas.width = width;
         canvas.height = height;
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0, width, height);
-        
-        canvas.toBlob((blob) => {
-          const compressedFile = new File([blob], file.name, {
-            type: 'image/jpeg',
-            lastModified: Date.now()
-          });
-          callback(compressedFile);
-        }, 'image/jpeg', 0.7);
+
+        canvas.toBlob(
+          (blob) => {
+            const compressedFile = new File([blob], file.name, {
+              type: "image/jpeg",
+              lastModified: Date.now(),
+            });
+            callback(compressedFile);
+          },
+          "image/jpeg",
+          0.7,
+        );
       };
       img.src = e.target.result;
     };
@@ -169,51 +175,51 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
 
   const handleSelectRAB = (rab) => {
     setSelectedRAB(rab);
-    setFormData({ 
-      ...formData, 
+    setFormData({
+      ...formData,
       nominal: parseFloat(rab.harga_satuan),
-      keterangan: rab.nama_item
+      keterangan: rab.nama_item,
     });
     setDisplayNominal(formatNominal(parseFloat(rab.harga_satuan)));
   };
 
   const formatNominal = (value) => {
-    if (!value && value !== 0) return '';
-    return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    if (!value && value !== 0) return "";
+    return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   };
 
   const formatRupiah = (angka) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      maximumFractionDigits: 0,
     }).format(angka || 0);
   };
 
   // Tanggal maksimal hari ini
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toISOString().split("T")[0];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!formData.id_program) {
-      alert('⚠️ Pilih program kerja!');
+      alert("⚠️ Pilih program kerja!");
       return;
     }
-    
+
     if (!formData.nominal || formData.nominal <= 0) {
-      alert('⚠️ Masukkan nominal!');
+      alert("⚠️ Masukkan nominal!");
       return;
     }
-    
+
     if (!formData.tanggal) {
-      alert('⚠️ Pilih tanggal!');
+      alert("⚠️ Pilih tanggal!");
       return;
     }
-    
+
     if (formData.tanggal > today) {
-      alert('⚠️ Tanggal tidak boleh lebih dari hari ini!');
+      alert("⚠️ Tanggal tidak boleh lebih dari hari ini!");
       return;
     }
 
@@ -221,70 +227,75 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
 
     try {
       const formDataToSend = new FormData();
-      formDataToSend.append('id_program', formData.id_program);
-      formDataToSend.append('id_pengguna', user.id_user);
-      formDataToSend.append('jenis', formData.jenis);
-      formDataToSend.append('nominal', formData.nominal);
-      formDataToSend.append('tanggal', formData.tanggal);
-      formDataToSend.append('keterangan', formData.keterangan);
-      formDataToSend.append('status', formData.status);
-      
+      formDataToSend.append("id_program", formData.id_program);
+      formDataToSend.append("id_pengguna", user.id_user);
+      formDataToSend.append("jenis", formData.jenis);
+      formDataToSend.append("nominal", formData.nominal);
+      formDataToSend.append("tanggal", formData.tanggal);
+      formDataToSend.append("keterangan", formData.keterangan);
+      formDataToSend.append("status", formData.status);
+
       if (formData.bukti_file) {
-        formDataToSend.append('bukti_file', formData.bukti_file);
+        formDataToSend.append("bukti_file", formData.bukti_file);
       }
 
       if (editingId) {
         await API.put(`/transaksi/${editingId}`, formDataToSend, {
-          headers: { 'Content-Type': 'multipart/form-data' }
+          headers: { "Content-Type": "multipart/form-data" },
         });
-        alert('✅ Transaksi berhasil diubah');
+        alert("✅ Transaksi berhasil diubah");
       } else {
-        await API.post('/transaksi', formDataToSend, {
-          headers: { 'Content-Type': 'multipart/form-data' }
+        await API.post("/transaksi", formDataToSend, {
+          headers: { "Content-Type": "multipart/form-data" },
         });
-        
-        if (formData.jenis === 'Keluar' && formData.status_bukti === 'tidak_ada') {
-          alert('✅ Transaksi disimpan dengan status Pending. Menunggu konfirmasi Ketua.');
+
+        if (
+          formData.jenis === "Keluar" &&
+          formData.status_bukti === "tidak_ada"
+        ) {
+          alert(
+            "✅ Transaksi disimpan dengan status Pending. Menunggu konfirmasi Ketua.",
+          );
         } else {
-          alert('✅ Transaksi berhasil ditambahkan');
+          alert("✅ Transaksi berhasil ditambahkan");
         }
       }
-      
+
       setShowModal(false);
       resetForm();
       fetchData();
     } catch (error) {
-      console.error('Gagal menyimpan:', error);
-      alert('❌ Gagal menyimpan transaksi');
+      console.error("Gagal menyimpan:", error);
+      alert("❌ Gagal menyimpan transaksi");
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Yakin ingin menghapus transaksi ini?')) return;
+    if (!window.confirm("Yakin ingin menghapus transaksi ini?")) return;
     try {
       await API.delete(`/transaksi/${id}`);
-      alert('✅ Transaksi berhasil dihapus');
+      alert("✅ Transaksi berhasil dihapus");
       fetchData();
     } catch (error) {
-      alert('❌ Gagal menghapus transaksi');
+      alert("❌ Gagal menghapus transaksi");
     }
   };
 
   const resetForm = () => {
     setEditingId(null);
     setFormData({
-      id_program: '',
-      jenis: 'Masuk',
-      nominal: '',
-      tanggal: new Date().toISOString().split('T')[0],
-      keterangan: '',
-      status_bukti: 'ada',
+      id_program: "",
+      jenis: "Masuk",
+      nominal: "",
+      tanggal: new Date().toISOString().split("T")[0],
+      keterangan: "",
+      status_bukti: "ada",
       bukti_file: null,
-      status: 'Selesai'
+      status: "Selesai",
     });
-    setDisplayNominal('');
+    setDisplayNominal("");
     setRabList([]);
     setSelectedRAB(null);
   };
@@ -301,25 +312,28 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
       jenis: transaksi.jenis,
       nominal: transaksi.nominal,
       tanggal: transaksi.tanggal,
-      keterangan: transaksi.keterangan || '',
-      status_bukti: transaksi.status === 'Pending' ? 'tidak_ada' : 'ada',
+      keterangan: transaksi.keterangan || "",
+      status_bukti: transaksi.status === "Pending" ? "tidak_ada" : "ada",
       bukti_file: null,
-      status: transaksi.status || 'Selesai'
+      status: transaksi.status || "Selesai",
     });
     setDisplayNominal(formatNominal(transaksi.nominal));
-    if (transaksi.jenis === 'Keluar') {
+    if (transaksi.jenis === "Keluar") {
       fetchRAB(transaksi.id_program);
     }
     setShowModal(true);
   };
 
   const getNamaProgram = (id) => {
-    return programList.find(p => p.id_program == id)?.nama_program || '-';
+    return programList.find((p) => p.id_program == id)?.nama_program || "-";
   };
 
   if (loading) {
     return (
-      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
+      <div
+        className="d-flex justify-content-center align-items-center"
+        style={{ minHeight: "60vh" }}
+      >
         <div className="text-center">
           <div className="spinner-border text-primary" />
           <p className="mt-3 text-muted">Memuat data transaksi...</p>
@@ -334,9 +348,14 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
       <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
         <h1 className="text-primary h4 mb-0">💳 Transaksi Kas</h1>
         <div className="d-flex align-items-center gap-2 flex-wrap">
-          <span className="text-nowrap small">Halo, <strong>{user.nama_lengkap}</strong></span>
+          <span className="text-nowrap small">
+            Halo, <strong>{user.nama_lengkap}</strong>
+          </span>
           <span className="badge bg-secondary small">{user.role}</span>
-          <button className="btn btn-outline-secondary btn-sm" onClick={() => onNavigate('dashboard')}>
+          <button
+            className="btn btn-outline-secondary btn-sm"
+            onClick={() => onNavigate("dashboard")}
+          >
             📊 Dashboard
           </button>
           <button className="btn btn-danger btn-sm" onClick={onLogout}>
@@ -348,9 +367,11 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
       {/* Info Periode Aktif */}
       {periodeAktif.length > 0 && (
         <div className="alert alert-info py-2 small mb-3">
-          📅 <strong>Periode Aktif:</strong>{' '}
+          📅 <strong>Periode Aktif:</strong>{" "}
           {periodeAktif.map((t, i) => (
-            <span key={i} className="badge bg-success me-1">{t}</span>
+            <span key={i} className="badge bg-success me-1">
+              {t}
+            </span>
           ))}
         </div>
       )}
@@ -366,11 +387,15 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
       <div className="card shadow-sm">
         <div className="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
           <h5 className="mb-0 h6">📋 Daftar Transaksi</h5>
-          <span className="badge bg-light text-dark small">{transaksiList.length} transaksi</span>
+          <span className="badge bg-light text-dark small">
+            {transaksiList.length} transaksi
+          </span>
         </div>
         <div className="card-body p-2 p-md-3">
           {transaksiList.length === 0 ? (
-            <div className="text-center py-4 text-muted small">Belum ada transaksi</div>
+            <div className="text-center py-4 text-muted small">
+              Belum ada transaksi
+            </div>
           ) : (
             <table className="table table-bordered table-hover align-middle mb-0 w-100 small">
               <thead className="table-light text-center">
@@ -390,20 +415,36 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
                     <td className="text-center">{index + 1}</td>
                     <td>{getNamaProgram(t.id_program)}</td>
                     <td className="text-center">
-                      <span className={`badge ${t.jenis === 'Masuk' ? 'bg-success' : 'bg-danger'}`}>
+                      <span
+                        className={`badge ${t.jenis === "Masuk" ? "bg-success" : "bg-danger"}`}
+                      >
                         {t.jenis}
                       </span>
                     </td>
                     <td className="text-end">{formatRupiah(t.nominal)}</td>
                     <td className="text-center">{t.tanggal}</td>
                     <td className="text-center">
-                      <span className={`badge ${t.status === 'Selesai' ? 'bg-success' : 'bg-warning text-dark'}`}>
-                        {t.status === 'Selesai' ? '✅ Selesai' : '⏳ Pending'}
+                      <span
+                        className={`badge ${t.status === "Selesai" || t.status === "Valid" ? "bg-success" : "bg-warning text-dark"}`}
+                      >
+                        {t.status === "Valid" || t.status === "Selesai"
+                          ? "✅ Selesai"
+                          : "⏳ Pending"}
                       </span>
                     </td>
                     <td className="text-center">
-                      <button className="btn btn-warning btn-sm me-1" onClick={() => openEditModal(t)}>✏️</button>
-                      <button className="btn btn-danger btn-sm" onClick={() => handleDelete(t.id_transaksi)}>🗑️</button>
+                      <button
+                        className="btn btn-warning btn-sm me-1"
+                        onClick={() => openEditModal(t)}
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        className="btn btn-danger btn-sm"
+                        onClick={() => handleDelete(t.id_transaksi)}
+                      >
+                        🗑️
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -415,27 +456,50 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
 
       {/* Modal Form */}
       {showModal && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div
+          className="modal show d-block"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+        >
           <div className="modal-dialog modal-lg modal-dialog-scrollable">
             <div className="modal-content">
               <div className="modal-header bg-primary text-white py-2">
                 <h5 className="modal-title h6">
-                  {editingId ? '✏️ Edit Transaksi' : '➕ Tambah Transaksi'}
+                  {editingId ? "✏️ Edit Transaksi" : "➕ Tambah Transaksi"}
                 </h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setShowModal(false)}></button>
+                <button
+                  type="button"
+                  className="btn-close btn-close-white"
+                  onClick={() => setShowModal(false)}
+                ></button>
               </div>
               <form onSubmit={handleSubmit}>
                 <div className="modal-body">
                   {/* Jenis Transaksi */}
                   <div className="mb-3">
-                    <label className="form-label small fw-bold">Jenis Transaksi</label>
+                    <label className="form-label small fw-bold">
+                      Jenis Transaksi
+                    </label>
                     <div className="d-flex gap-3">
                       <label className="form-check">
-                        <input type="radio" className="form-check-input" name="jenis" value="Masuk" checked={formData.jenis === 'Masuk'} onChange={handleChange} />
+                        <input
+                          type="radio"
+                          className="form-check-input"
+                          name="jenis"
+                          value="Masuk"
+                          checked={formData.jenis === "Masuk"}
+                          onChange={handleChange}
+                        />
                         <span className="badge bg-success ms-1">💰 Masuk</span>
                       </label>
                       <label className="form-check">
-                        <input type="radio" className="form-check-input" name="jenis" value="Keluar" checked={formData.jenis === 'Keluar'} onChange={handleChange} />
+                        <input
+                          type="radio"
+                          className="form-check-input"
+                          name="jenis"
+                          value="Keluar"
+                          checked={formData.jenis === "Keluar"}
+                          onChange={handleChange}
+                        />
                         <span className="badge bg-danger ms-1">📤 Keluar</span>
                       </label>
                     </div>
@@ -443,21 +507,36 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
 
                   {/* Program Kerja */}
                   <div className="mb-3">
-                    <label className="form-label small fw-bold">Program Kerja <span className="text-danger">*</span></label>
-                    <select className="form-select form-select-sm" name="id_program" value={formData.id_program} onChange={handleChange} required>
+                    <label className="form-label small fw-bold">
+                      Program Kerja <span className="text-danger">*</span>
+                    </label>
+                    <select
+                      className="form-select form-select-sm"
+                      name="id_program"
+                      value={formData.id_program}
+                      onChange={handleChange}
+                      required
+                    >
                       <option value="">-- Pilih Program --</option>
                       {programList.map((prog) => (
-                        <option key={prog.id_program} value={prog.id_program}>{prog.nama_program} ({prog.periode})</option>
+                        <option key={prog.id_program} value={prog.id_program}>
+                          {prog.nama_program} ({prog.periode})
+                        </option>
                       ))}
                     </select>
                   </div>
 
                   {/* Daftar RAB (hanya untuk Pengeluaran) */}
-                  {formData.jenis === 'Keluar' && rabList.length > 0 && (
+                  {formData.jenis === "Keluar" && rabList.length > 0 && (
                     <div className="mb-3">
-                      <label className="form-label small fw-bold">📋 Daftar Biaya RAB</label>
+                      <label className="form-label small fw-bold">
+                        📋 Daftar Biaya RAB
+                      </label>
                       <div className="card bg-light">
-                        <div className="card-body p-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                        <div
+                          className="card-body p-2"
+                          style={{ maxHeight: "200px", overflowY: "auto" }}
+                        >
                           <table className="table table-sm table-bordered mb-0 small">
                             <thead className="table-light text-center">
                               <tr>
@@ -468,17 +547,29 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
                             </thead>
                             <tbody>
                               {rabList.map((rab) => (
-                                <tr 
-                                  key={rab.id_rab} 
-                                  className={selectedRAB?.id_rab === rab.id_rab ? 'table-success' : ''}
-                                  style={{ cursor: 'pointer' }}
+                                <tr
+                                  key={rab.id_rab}
+                                  className={
+                                    selectedRAB?.id_rab === rab.id_rab
+                                      ? "table-success"
+                                      : ""
+                                  }
+                                  style={{ cursor: "pointer" }}
                                   onClick={() => handleSelectRAB(rab)}
                                 >
                                   <td className="text-center">
-                                    <input type="radio" checked={selectedRAB?.id_rab === rab.id_rab} readOnly />
+                                    <input
+                                      type="radio"
+                                      checked={
+                                        selectedRAB?.id_rab === rab.id_rab
+                                      }
+                                      readOnly
+                                    />
                                   </td>
                                   <td>{rab.nama_item}</td>
-                                  <td className="text-end">{formatRupiah(rab.harga_satuan)}</td>
+                                  <td className="text-end">
+                                    {formatRupiah(rab.harga_satuan)}
+                                  </td>
                                 </tr>
                               ))}
                             </tbody>
@@ -490,10 +581,12 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
 
                   {/* Nominal */}
                   <div className="mb-3">
-                    <label className="form-label small fw-bold">Nominal (Rp) <span className="text-danger">*</span></label>
-                    <input 
-                      type="text" 
-                      className="form-control form-control-sm" 
+                    <label className="form-label small fw-bold">
+                      Nominal (Rp) <span className="text-danger">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
                       name="nominal"
                       value={displayNominal}
                       onChange={handleChange}
@@ -504,30 +597,51 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
 
                   {/* Tanggal */}
                   <div className="mb-3">
-                    <label className="form-label small fw-bold">Tanggal <span className="text-danger">*</span></label>
-                    <input 
-                      type="date" 
-                      className="form-control form-control-sm" 
+                    <label className="form-label small fw-bold">
+                      Tanggal <span className="text-danger">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      className="form-control form-control-sm"
                       name="tanggal"
                       value={formData.tanggal}
                       onChange={handleChange}
                       max={today}
                       required
                     />
-                    <small className="text-muted">Maksimal hari ini ({new Date().toLocaleDateString('id-ID')})</small>
+                    <small className="text-muted">
+                      Maksimal hari ini (
+                      {new Date().toLocaleDateString("id-ID")})
+                    </small>
                   </div>
 
                   {/* Status Bukti (hanya Pengeluaran) */}
-                  {formData.jenis === 'Keluar' && (
+                  {formData.jenis === "Keluar" && (
                     <div className="mb-3">
-                      <label className="form-label small fw-bold">Status Bukti</label>
+                      <label className="form-label small fw-bold">
+                        Status Bukti
+                      </label>
                       <div className="d-flex gap-3">
                         <label className="form-check">
-                          <input type="radio" className="form-check-input" name="status_bukti" value="ada" checked={formData.status_bukti === 'ada'} onChange={handleChange} />
+                          <input
+                            type="radio"
+                            className="form-check-input"
+                            name="status_bukti"
+                            value="ada"
+                            checked={formData.status_bukti === "ada"}
+                            onChange={handleChange}
+                          />
                           <span>✅ Ada Bukti</span>
                         </label>
                         <label className="form-check">
-                          <input type="radio" className="form-check-input" name="status_bukti" value="tidak_ada" checked={formData.status_bukti === 'tidak_ada'} onChange={handleChange} />
+                          <input
+                            type="radio"
+                            className="form-check-input"
+                            name="status_bukti"
+                            value="tidak_ada"
+                            checked={formData.status_bukti === "tidak_ada"}
+                            onChange={handleChange}
+                          />
                           <span>❌ Tidak Ada Bukti</span>
                         </label>
                       </div>
@@ -535,59 +649,84 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
                   )}
 
                   {/* Upload Bukti (jika Ada Bukti) */}
-                  {formData.jenis === 'Keluar' && formData.status_bukti === 'ada' && (
-                    <div className="mb-3 p-3 bg-light rounded">
-                      <label className="form-label small fw-bold">Upload Foto/Dokumen</label>
-                      <input 
-                        type="file" 
-                        className="form-control form-control-sm" 
-                        name="bukti_file"
-                        accept="image/*,.pdf"
-                        onChange={handleChange}
-                      />
-                      <small className="text-muted">
-                        Max 500KB. File akan otomatis dikompres jika melebihi.
-                      </small>
-                      <div className="mt-2">
-                        <span className="badge bg-success">✅ Status: Selesai (Otomatis)</span>
+                  {formData.jenis === "Keluar" &&
+                    formData.status_bukti === "ada" && (
+                      <div className="mb-3 p-3 bg-light rounded">
+                        <label className="form-label small fw-bold">
+                          Upload Foto/Dokumen
+                        </label>
+                        <input
+                          type="file"
+                          className="form-control form-control-sm"
+                          name="bukti_file"
+                          accept="image/*,.pdf"
+                          onChange={handleChange}
+                        />
+                        <small className="text-muted">
+                          Max 500KB. File akan otomatis dikompres jika melebihi.
+                        </small>
+                        <div className="mt-2">
+                          <span className="badge bg-success">
+                            ✅ Status: Selesai (Otomatis)
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
                   {/* Konfirmasi Ketua (jika Tidak Ada Bukti) */}
-                  {formData.jenis === 'Keluar' && formData.status_bukti === 'tidak_ada' && (
-                    <div className="mb-3 p-3 bg-warning-light rounded border border-warning">
-                      <small>⚠️ Transaksi ini akan memerlukan <strong>konfirmasi Ketua</strong>.</small>
-                      <div className="mt-2">
-                        <span className="badge bg-warning text-dark">⏳ Status: Pending</span>
+                  {formData.jenis === "Keluar" &&
+                    formData.status_bukti === "tidak_ada" && (
+                      <div className="mb-3 p-3 bg-warning-light rounded border border-warning">
+                        <small>
+                          ⚠️ Transaksi ini akan memerlukan{" "}
+                          <strong>konfirmasi Ketua</strong>.
+                        </small>
+                        <div className="mt-2">
+                          <span className="badge bg-warning text-dark">
+                            ⏳ Status: Pending
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
                   {/* Status (Pemasukan - readonly) */}
-                  {formData.jenis === 'Masuk' && (
+                  {formData.jenis === "Masuk" && (
                     <div className="mb-3 p-3 bg-light rounded">
-                      <span className="badge bg-success">✅ Status: Selesai (Otomatis untuk Pemasukan)</span>
+                      <span className="badge bg-success">
+                        ✅ Status: Selesai (Otomatis untuk Pemasukan)
+                      </span>
                     </div>
                   )}
 
                   {/* Keterangan */}
                   <div className="mb-3">
-                    <label className="form-label small fw-bold">Keterangan</label>
-                    <textarea 
-                      className="form-control form-control-sm" 
-                      name="keterangan" 
-                      rows="2" 
-                      value={formData.keterangan} 
+                    <label className="form-label small fw-bold">
+                      Keterangan
+                    </label>
+                    <textarea
+                      className="form-control form-control-sm"
+                      name="keterangan"
+                      rows="2"
+                      value={formData.keterangan}
                       onChange={handleChange}
                       placeholder="Keterangan tambahan"
                     />
                   </div>
                 </div>
                 <div className="modal-footer py-2">
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowModal(false)}>❌ Batal</button>
-                  <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>
-                    {saving ? 'Menyimpan...' : '💾 Simpan'}
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setShowModal(false)}
+                  >
+                    ❌ Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary btn-sm"
+                    disabled={saving}
+                  >
+                    {saving ? "Menyimpan..." : "💾 Simpan"}
                   </button>
                 </div>
               </form>
