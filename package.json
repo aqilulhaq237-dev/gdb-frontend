@@ -25,16 +25,16 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
-"eslintConfig": {
-  "extends": [
-    "react-app",
-    "react-app/jest"
-  ],
-  "rules": {
-    "react-hooks/exhaustive-deps": "off",
-    "eqeqeq": "off"
-  }
-},
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ],
+    "rules": {
+      "react-hooks/exhaustive-deps": "off",
+      "eqeqeq": "off"
+    }
+  },
   "browserslist": {
     "production": [
       ">0.2%",
