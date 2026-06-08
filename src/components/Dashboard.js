@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import API from '../services/api';
-import { Pie, Bar } from 'react-chartjs-2';
+import { Doughnut, Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   ArcElement,
@@ -10,340 +10,193 @@ import {
   LinearScale,
   BarElement,
   Title,
+  Filler,
 } from 'chart.js';
 
-// Register ChartJS
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, Filler);
 
 function Dashboard({ user, onLogout, onNavigate }) {
-  const [status, setStatus] = useState('Loading...');
-  const [stats, setStats] = useState({
-    total_pemasukan: 0,
-    total_pengeluaran: 0,
-    sisa_saldo: 0,
-    program_aktif: 0,
-    periode_aktif: [],
-  });
+  const [stats, setStats] = useState({ total_pemasukan: 0, total_pengeluaran: 0, sisa_saldo: 0, program_aktif: 0, periode_aktif: [] });
   const [programList, setProgramList] = useState([]);
   const [transaksiList, setTransaksiList] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
+  useEffect(() => { fetchDashboardData(); }, []);
 
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const healthRes = await API.get('/health');
-      setStatus(healthRes.data.message || 'Running');
-
       const statsRes = await API.get('/dashboard/stats');
-      if (statsRes.data.status === 'success') {
-        setStats(statsRes.data.data);
-      }
+      if (statsRes.data.status === 'success') setStats(statsRes.data.data);
 
-      // Ambil program untuk tabel
       const progRes = await API.get('/program-kerja');
       if (progRes.data.status === 'success') {
-        const periodeAktif = statsRes.data.data?.periode_aktif || [];
+        const periode = statsRes.data.data?.periode_aktif || [];
         let filtered = progRes.data.data;
-        if (periodeAktif.length > 0) {
-          filtered = filtered.filter((p) =>
-            periodeAktif.some((periode) => p.periode?.toString() === periode.toString())
-          );
-        }
-        setProgramList(filtered.slice(0, 5)); // 5 terbaru
+        if (periode.length > 0) filtered = filtered.filter(p => periode.some(pr => p.periode?.toString() === pr.toString()));
+        setProgramList(filtered.slice(0, 5));
       }
 
-      // Ambil transaksi untuk chart
       const transRes = await API.get('/transaksi');
-      if (transRes.data.status === 'success') {
-        setTransaksiList(transRes.data.data);
-      }
-    } catch (error) {
-      console.error('Gagal fetch dashboard:', error);
-    } finally {
-      setLoading(false);
-    }
+      if (transRes.data.status === 'success') setTransaksiList(transRes.data.data);
+    } catch (error) { console.error('Gagal:', error); }
+    finally { setLoading(false); }
   };
 
-  const formatRupiah = (angka) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(angka || 0);
-  };
+  const formatRupiah = (a) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(a || 0);
 
-  // Data Pie Chart
-  const pieData = {
+  // Chart Config
+  const chartColors = { primary: '#6366f1', success: '#10b981', danger: '#ef4444', warning: '#f59e0b', info: '#3b82f6', dark: '#1e293b', light: '#f1f5f9' };
+
+  const doughnutData = {
     labels: ['Pemasukan', 'Pengeluaran'],
-    datasets: [
-      {
-        data: [stats.total_pemasukan, stats.total_pengeluaran],
-        backgroundColor: ['#28a745', '#dc3545'],
-        borderColor: ['#1e7e34', '#b02a37'],
-        borderWidth: 2,
-      },
-    ],
+    datasets: [{ data: [stats.total_pemasukan, stats.total_pengeluaran], backgroundColor: [chartColors.success, chartColors.danger], borderColor: '#ffffff', borderWidth: 3, hoverBorderWidth: 4 }]
   };
 
-  // Data Bar Chart - Transaksi per Program
-  const programNames = [...new Set(transaksiList.map((t) => t.nama_program))];
+  const programNames = [...new Set(transaksiList.map(t => t.nama_program))];
+  const barColors = ['#6366f1', '#8b5cf6', '#a78bfa', '#c4b5fd', '#ddd6fe'];
   const barData = {
     labels: programNames,
-    datasets: [
-      {
-        label: 'Total Transaksi',
-        data: programNames.map((name) =>
-          transaksiList
-            .filter((t) => t.nama_program === name)
-            .reduce((sum, t) => sum + t.nominal, 0)
-        ),
-        backgroundColor: '#007bff',
-        borderRadius: 8,
-      },
-    ],
+    datasets: [{ label: 'Total Transaksi', data: programNames.map(name => transaksiList.filter(t => t.nama_program === name).reduce((s, t) => s + t.nominal, 0)), backgroundColor: barColors.slice(0, programNames.length), borderRadius: 6, borderSkipped: false }]
   };
 
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'bottom',
-        labels: { font: { size: 12 } },
-      },
-    },
-  };
+  const chartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true, font: { size: 11 } } } }, scales: { x: { grid: { display: false } }, y: { grid: { color: '#e2e8f0' } } } };
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'Selesai':
-        return 'bg-success';
-      case 'Berjalan':
-        return 'bg-primary';
-      case 'Batal':
-        return 'bg-danger';
-      default:
-        return 'bg-warning';
-    }
-  };
+  const getStatusBadge = (s) => { switch(s) { case 'Selesai': return { bg: '#10b981', text: 'Selesai', icon: '✓' }; case 'Berjalan': return { bg: '#3b82f6', text: 'Berjalan', icon: '▶' }; default: return { bg: '#f59e0b', text: 'Rencana', icon: '○' }; } };
+  const getProgress = (s) => { switch(s) { case 'Selesai': return 100; case 'Berjalan': return 65; default: return 25; } };
 
-  const getProgressColor = (status) => {
-    switch (status) {
-      case 'Selesai':
-        return 'bg-success';
-      case 'Berjalan':
-        return 'bg-primary';
-      default:
-        return 'bg-warning';
-    }
-  };
-
-  const getProgressWidth = (status) => {
-    switch (status) {
-      case 'Selesai':
-        return '100%';
-      case 'Berjalan':
-        return '60%';
-      default:
-        return '20%';
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
-        <div className="text-center">
-          <div className="spinner-border text-primary" />
-          <p className="mt-3 text-muted">Memuat dashboard...</p>
-        </div>
+  if (loading) return (
+    <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '80vh', background: '#f8fafc' }}>
+      <div className="text-center">
+        <div className="spinner-border" style={{ color: '#6366f1', width: '3rem', height: '3rem' }} />
+        <p className="mt-3 text-muted">Memuat dashboard...</p>
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
-    <div className="px-3 px-md-4 py-3 w-100">
+    <div style={{ background: '#f8fafc', minHeight: '100vh', padding: '24px' }}>
       {/* Header */}
-      <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
-        <h1 className="text-primary h4 mb-0">📊 Dashboard</h1>
-        <div className="d-flex align-items-center gap-2 flex-wrap">
-          <span className="text-nowrap small">Halo, <strong>{user.nama_lengkap}</strong></span>
-          <span className="badge bg-secondary small">{user.role}</span>
-          <button className="btn btn-danger btn-sm" onClick={onLogout}>🚪 Logout</button>
+      <div className="d-flex flex-wrap justify-content-between align-items-center mb-4">
+        <div>
+          <h1 className="h4 mb-1" style={{ color: '#1e293b', fontWeight: 700 }}>📊 Dashboard</h1>
+          <p className="small text-muted mb-0">Selamat datang, <strong>{user.nama_lengkap}</strong></p>
         </div>
-      </div>
-
-      {/* 4 Kartu Statistik */}
-      <div className="row g-2 mb-4">
-        <div className="col-6 col-md-3">
-          <div className="card bg-success text-white h-100 shadow-sm border-0">
-            <div className="card-body text-center py-3">
-              <small className="d-block opacity-75">💰 Total Kas Masuk</small>
-              <h5 className="mb-0 fw-bold">{formatRupiah(stats.total_pemasukan)}</h5>
-            </div>
-          </div>
-        </div>
-        <div className="col-6 col-md-3">
-          <div className="card bg-danger text-white h-100 shadow-sm border-0">
-            <div className="card-body text-center py-3">
-              <small className="d-block opacity-75">📤 Total Kas Keluar</small>
-              <h5 className="mb-0 fw-bold">{formatRupiah(stats.total_pengeluaran)}</h5>
-            </div>
-          </div>
-        </div>
-        <div className="col-6 col-md-3">
-          <div className="card bg-info text-white h-100 shadow-sm border-0">
-            <div className="card-body text-center py-3">
-              <small className="d-block opacity-75">💵 Sisa Saldo</small>
-              <h5 className="mb-0 fw-bold">{formatRupiah(stats.sisa_saldo)}</h5>
-            </div>
-          </div>
-        </div>
-        <div className="col-6 col-md-3">
-          <div className="card bg-warning h-100 shadow-sm border-0">
-            <div className="card-body text-center py-3">
-              <small className="d-block opacity-75">📋 Program Aktif</small>
-              <h5 className="mb-0 fw-bold">{stats.program_aktif}</h5>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Periode Aktif */}
-      {stats.periode_aktif && stats.periode_aktif.length > 0 && (
-        <div className="alert alert-info py-2 small mb-4 border-0 shadow-sm">
-          📅 <strong>Periode Aktif:</strong>{' '}
-          {stats.periode_aktif.map((t, i) => (
-            <span key={i} className="badge bg-success me-1">{t}</span>
+        <div className="d-flex align-items-center gap-3">
+          {stats.periode_aktif?.length > 0 && stats.periode_aktif.map((t, i) => (
+            <span key={i} className="badge px-3 py-2" style={{ background: '#6366f1', fontSize: '13px' }}>{t}</span>
           ))}
+          <span className="badge px-3 py-2" style={{ background: '#e2e8f0', color: '#64748b', fontSize: '13px' }}>{user.role}</span>
+          <button className="btn btn-sm px-3" style={{ background: '#fff', border: '1px solid #e2e8f0', color: '#ef4444' }} onClick={onLogout}>🚪 Logout</button>
         </div>
-      )}
+      </div>
 
-      {/* Charts Row */}
+      {/* Stat Cards */}
       <div className="row g-3 mb-4">
-        {/* Pie Chart */}
-        <div className="col-md-6">
-          <div className="card shadow-sm border-0 h-100">
-            <div className="card-header bg-white py-2 border-0">
-              <h6 className="mb-0">🍩 Pemasukan vs Pengeluaran</h6>
+        {[
+          { icon: '💰', label: 'Total Kas Masuk', value: stats.total_pemasukan, color: '#10b981', bg: '#ecfdf5' },
+          { icon: '📤', label: 'Total Kas Keluar', value: stats.total_pengeluaran, color: '#ef4444', bg: '#fef2f2' },
+          { icon: '💵', label: 'Sisa Saldo', value: stats.sisa_saldo, color: '#6366f1', bg: '#eef2ff' },
+          { icon: '📋', label: 'Program Aktif', value: `${stats.program_aktif} Program`, color: '#f59e0b', bg: '#fffbeb', isNum: false },
+        ].map((card, i) => (
+          <div className="col-6 col-xl-3" key={i}>
+            <div className="card border-0 shadow-sm h-100" style={{ borderRadius: '16px' }}>
+              <div className="card-body p-3">
+                <div className="d-flex align-items-center gap-3">
+                  <div className="d-flex align-items-center justify-content-center rounded-circle" style={{ width: '48px', height: '48px', background: card.bg, color: card.color, fontSize: '20px' }}>{card.icon}</div>
+                  <div>
+                    <p className="text-muted small mb-0" style={{ fontSize: '11px' }}>{card.label}</p>
+                    <h5 className="mb-0 fw-bold" style={{ color: '#1e293b', fontSize: card.isNum === false ? '16px' : '18px' }}>{card.isNum === false ? card.value : formatRupiah(card.value)}</h5>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="card-body d-flex align-items-center justify-content-center" style={{ height: '280px' }}>
-              {stats.total_pemasukan === 0 && stats.total_pengeluaran === 0 ? (
-                <p className="text-muted small">Belum ada data transaksi</p>
-              ) : (
-                <Pie data={pieData} options={chartOptions} />
-              )}
+          </div>
+        ))}
+      </div>
+
+      {/* Charts */}
+      <div className="row g-3 mb-4">
+        <div className="col-lg-6">
+          <div className="card border-0 shadow-sm h-100" style={{ borderRadius: '16px' }}>
+            <div className="card-header bg-white border-0 pt-3 pb-0">
+              <h6 className="mb-0 fw-bold" style={{ color: '#1e293b' }}>🍩 Pemasukan vs Pengeluaran</h6>
+            </div>
+            <div className="card-body d-flex align-items-center justify-content-center" style={{ height: '300px' }}>
+              {stats.total_pemasukan === 0 && stats.total_pengeluaran === 0 ? <p className="text-muted small">Belum ada data</p> : <Doughnut data={doughnutData} options={{ ...chartOptions, cutout: '65%' }} />}
             </div>
           </div>
         </div>
-
-        {/* Bar Chart */}
-        <div className="col-md-6">
-          <div className="card shadow-sm border-0 h-100">
-            <div className="card-header bg-white py-2 border-0">
-              <h6 className="mb-0">📊 Transaksi per Program</h6>
+        <div className="col-lg-6">
+          <div className="card border-0 shadow-sm h-100" style={{ borderRadius: '16px' }}>
+            <div className="card-header bg-white border-0 pt-3 pb-0">
+              <h6 className="mb-0 fw-bold" style={{ color: '#1e293b' }}>📊 Transaksi per Program</h6>
             </div>
-            <div className="card-body d-flex align-items-center justify-content-center" style={{ height: '280px' }}>
-              {programNames.length === 0 ? (
-                <p className="text-muted small">Belum ada data transaksi</p>
-              ) : (
-                <Bar data={barData} options={{ ...chartOptions, indexAxis: 'y' }} />
-              )}
+            <div className="card-body d-flex align-items-center justify-content-center" style={{ height: '300px' }}>
+              {programNames.length === 0 ? <p className="text-muted small">Belum ada data</p> : <Bar data={barData} options={{ ...chartOptions, indexAxis: 'y' }} />}
             </div>
           </div>
         </div>
       </div>
 
       {/* Program Terbaru */}
-      <div className="card shadow-sm border-0 mb-4">
-        <div className="card-header bg-white py-2 border-0 d-flex justify-content-between align-items-center">
-          <h6 className="mb-0">📋 Program Terbaru</h6>
-          <button className="btn btn-outline-primary btn-sm" onClick={() => onNavigate('program-kerja')}>
-            Lihat Semua
-          </button>
+      <div className="card border-0 shadow-sm mb-4" style={{ borderRadius: '16px' }}>
+        <div className="card-header bg-white border-0 d-flex justify-content-between align-items-center pt-3 pb-0">
+          <h6 className="mb-0 fw-bold" style={{ color: '#1e293b' }}>📋 Program Terbaru</h6>
+          <button className="btn btn-sm px-3" style={{ background: '#eef2ff', color: '#6366f1', border: 'none', borderRadius: '8px' }} onClick={() => onNavigate('program-kerja')}>Lihat Semua →</button>
         </div>
-        <div className="card-body p-2">
-          {programList.length === 0 ? (
-            <p className="text-muted small text-center py-3">Belum ada program kerja</p>
-          ) : (
-            <div className="table-responsive">
-              <table className="table table-borderless table-sm align-middle mb-0 small">
-                <thead className="text-muted border-bottom">
-                  <tr>
-                    <th>Program</th>
-                    <th>Status</th>
-                    <th style={{ width: '30%' }}>Progress</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {programList.map((prog) => (
-                    <tr key={prog.id_program}>
-                      <td><strong>{prog.nama_program}</strong></td>
-                      <td>
-                        <span className={`badge ${getStatusBadge(prog.status_program)}`}>
-                          {prog.status_program || 'Rencana'}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="progress" style={{ height: '8px' }}>
-                          <div
-                            className={`progress-bar ${getProgressColor(prog.status_program)}`}
-                            style={{ width: getProgressWidth(prog.status_program) }}
-                          ></div>
-                        </div>
-                        <small className="text-muted">{getProgressWidth(prog.status_program)}</small>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+        <div className="card-body">
+          {programList.length === 0 ? <p className="text-muted small text-center py-3">Belum ada program</p> : (
+            programList.map((prog, i) => {
+              const status = getStatusBadge(prog.status_program);
+              const progress = getProgress(prog.status_program);
+              return (
+                <div key={i} className="d-flex align-items-center gap-3 py-3" style={{ borderBottom: i < programList.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                  <div className="d-flex align-items-center justify-content-center rounded-circle flex-shrink-0" style={{ width: '40px', height: '40px', background: '#eef2ff', color: '#6366f1', fontSize: '16px' }}>📌</div>
+                  <div className="flex-grow-1">
+                    <p className="mb-0 fw-bold small" style={{ color: '#1e293b' }}>{prog.nama_program}</p>
+                    <span className="badge px-2 py-1 mt-1" style={{ background: status.bg, color: '#fff', fontSize: '10px' }}>{status.icon} {status.text}</span>
+                  </div>
+                  <div style={{ width: '120px' }}>
+                    <div className="progress" style={{ height: '6px', borderRadius: '3px', background: '#f1f5f9' }}>
+                      <div className="progress-bar" style={{ width: `${progress}%`, background: status.bg, borderRadius: '3px' }}></div>
+                    </div>
+                    <small className="text-muted" style={{ fontSize: '10px' }}>{progress}%</small>
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
       </div>
 
       {/* Quick Actions */}
-      <div className="card shadow-sm border-0 mb-4">
-        <div className="card-header bg-white py-2 border-0">
-          <h6 className="mb-0">⚡ Quick Actions</h6>
+      <div className="card border-0 shadow-sm mb-4" style={{ borderRadius: '16px' }}>
+        <div className="card-header bg-white border-0 pt-3 pb-0">
+          <h6 className="mb-0 fw-bold" style={{ color: '#1e293b' }}>⚡ Quick Actions</h6>
         </div>
-        <div className="card-body py-3">
+        <div className="card-body">
           <div className="row g-2">
-            <div className="col-6 col-md-3">
-              <button className="btn btn-outline-primary w-100 py-3" onClick={() => onNavigate('program-kerja')}>
-                <div className="fs-4">📋</div>
-                <small>Program Kerja</small>
-              </button>
-            </div>
-            <div className="col-6 col-md-3">
-              <button className="btn btn-outline-success w-100 py-3" onClick={() => onNavigate('kelola-rab')}>
-                <div className="fs-4">💰</div>
-                <small>Kelola RAB</small>
-              </button>
-            </div>
-            <div className="col-6 col-md-3">
-              <button className="btn btn-outline-warning w-100 py-3" onClick={() => onNavigate('transaksi')}>
-                <div className="fs-4">💳</div>
-                <small>Transaksi</small>
-              </button>
-            </div>
-            <div className="col-6 col-md-3">
-              <button className="btn btn-outline-info w-100 py-3" onClick={() => onNavigate('lihat-laporan')}>
-                <div className="fs-4">📊</div>
-                <small>Laporan</small>
-              </button>
-            </div>
+            {[
+              { label: 'Program Kerja', icon: '📋', color: '#6366f1', bg: '#eef2ff', page: 'program-kerja' },
+              { label: 'Kelola RAB', icon: '💰', color: '#10b981', bg: '#ecfdf5', page: 'kelola-rab' },
+              { label: 'Transaksi Kas', icon: '💳', color: '#f59e0b', bg: '#fffbeb', page: 'transaksi' },
+              { label: 'Lihat Laporan', icon: '📊', color: '#3b82f6', bg: '#eff6ff', page: 'lihat-laporan' },
+            ].map((btn, i) => (
+              <div className="col-6 col-md-3" key={i}>
+                <button className="btn w-100 py-3 border-0" style={{ background: btn.bg, color: btn.color, borderRadius: '12px', fontWeight: 600, fontSize: '14px' }} onClick={() => onNavigate(btn.page)}>
+                  <div className="fs-4 mb-1">{btn.icon}</div>
+                  {btn.label}
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Status */}
-      <div className="text-center small text-muted">
-        Status: <strong className="text-success">{status}</strong> | Role: {user.role} | Email: {user.email}
+      {/* Footer */}
+      <div className="text-center small text-muted py-2">
+        © {new Date().getFullYear()} GDB Cash Management • Status: <span style={{ color: '#10b981' }}>● Online</span>
       </div>
     </div>
   );
