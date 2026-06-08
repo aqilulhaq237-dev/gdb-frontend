@@ -425,13 +425,14 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
                     <td className="text-center">{t.tanggal}</td>
                     <td className="text-center">
                       <span
-                        className={`badge ${t.status === "Valid" || t.status === "Selesai" || t.status_validasi === "Valid" ? "bg-success" : "bg-warning text-dark"}`}
+                        className={`badge ${t.status === "Valid" || t.status_validasi === "Valid" ? "bg-success" : t.status === "Tidak Valid" || t.status_validasi === "Tidak Valid" ? "bg-danger" : "bg-warning text-dark"}`}
                       >
-                        {t.status === "Valid" ||
-                        t.status === "Selesai" ||
-                        t.status_validasi === "Valid"
+                        {t.status === "Valid" || t.status_validasi === "Valid"
                           ? "✅ Selesai"
-                          : "⏳ Pending"}
+                          : t.status === "Tidak Valid" ||
+                              t.status_validasi === "Tidak Valid"
+                            ? "❌ Ditolak"
+                            : "⏳ Pending"}
                       </span>
                     </td>
                     <td className="text-center">
