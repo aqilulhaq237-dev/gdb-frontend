@@ -1,189 +1,160 @@
-import React, { useEffect, useState, useRef } from 'react';
-import API from '../services/api';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import API from "../services/api";
 
 function KelolaPeriodeAktif({ user, onLogout, onNavigate }) {
-  const [tahunList, setTahunList] = useState([]);
-  const [selectedTahun, setSelectedTahun] = useState([]);
-  const [newTahun, setNewTahun] = useState('');
+  const navigate = useNavigate();
+  const [periods, setPeriods] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
-  const [showDropdown, setShowDropdown] = useState(false);
-  const dropdownRef = useRef(null);
-  const inputRef = useRef(null);
-
-  const currentYear = new Date().getFullYear();
-
-  const suggestionYears = [
-    `${currentYear + 2}/${currentYear + 3}`,
-    `${currentYear + 2}`,
-    `${currentYear + 1}/${currentYear + 2}`,
-    `${currentYear + 1}`,
-    `${currentYear}/${currentYear + 1}`,
-    `${currentYear}`,
-    `${currentYear - 1}/${currentYear}`,
-    `${currentYear - 1}`,
-    `${currentYear - 2}/${currentYear - 1}`,
-    `${currentYear - 2}`,
-  ];
-
-  const filteredSuggestions = suggestionYears.filter(
-    year => 
-      !tahunList.includes(year) && 
-      year.toLowerCase().includes(newTahun.toLowerCase())
-  );
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [showModal, setShowModal] = useState(false);
+  const [editingPeriod, setEditingPeriod] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    nama_periode: "",
+    tahun: "",
+    status_periode: "Nonaktif",
+  });
 
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setShowDropdown(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    fetchPeriods();
   }, []);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchPeriods = async () => {
     try {
-      const tahunResponse = await API.get('/periode/tahun-list');
-      if (tahunResponse.data.status === 'success') {
-        setTahunList(tahunResponse.data.data);
-      }
+      setLoading(true);
+      const token = localStorage.getItem("token");
+      const response = await API.get("/periode-aktif", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-      const aktifResponse = await API.get('/periode/aktif');
-      if (aktifResponse.data.status === 'success') {
-        setSelectedTahun(aktifResponse.data.data || []);
+      if (response.data.status === "success") {
+        // Fetch full list
+        const allPeriode = await API.get("/periode/tahun-list", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (allPeriode.data.status === "success") {
+          const tahunList = allPeriode.data.data;
+          const periodeData = tahunList.map((tahun) => ({
+            id_periode: tahun,
+            nama_periode: `Periode ${tahun}`,
+            tahun: tahun,
+            status_periode: response.data.data.tahun_sekarang && tahun === new Date().getFullYear().toString() ? "Aktif" : "Nonaktif",
+          }));
+          setPeriods(periodeData);
+        }
       }
-    } catch (error) {
-      console.error('Gagal memuat data:', error);
-      const cy = new Date().getFullYear();
-      setTahunList([
-        `${cy}/${cy + 1}`,
-        `${cy}`,
-        `${cy - 1}/${cy}`,
-        `${cy - 1}`,
-      ]);
+    } catch (err) {
+      console.error("Error fetching periods:", err);
+      setError("Gagal memuat data periode.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCheckboxChange = (tahun) => {
-    setSelectedTahun(prev => {
-      if (prev.includes(tahun)) {
-        return prev.filter(t => t !== tahun);
-      } else {
-        if (prev.length >= 2) {
-          setMessage('⚠️ Maksimal hanya dapat memilih 2 tahun!');
-          setTimeout(() => setMessage(''), 3000);
-          return prev;
-        }
-        return [...prev, tahun];
-      }
-    });
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+
+    if (name === "tahun") {
+      // HANYA ANGKA, maksimal 4 digit
+      const cleaned = value.replace(/\D/g, "").slice(0, 4);
+      setFormData({ ...formData, tahun: cleaned });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
   };
 
-  const handleTambahTahun = async (tahunInput = null) => {
-    const tahun = tahunInput || newTahun.trim();
-    
-    if (!tahun) {
-      setMessage('⚠️ Masukkan atau pilih tahun!');
-      setTimeout(() => setMessage(''), 3000);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!formData.nama_periode.trim()) {
+      setError("⚠️ Nama periode wajib diisi!");
       return;
     }
 
-    if (tahunList.includes(tahun)) {
-      setMessage('⚠️ Tahun sudah ada dalam daftar!');
-      setTimeout(() => setMessage(''), 3000);
+    if (!formData.tahun || formData.tahun.length !== 4) {
+      setError("⚠️ Tahun harus 4 digit angka!");
       return;
     }
 
     try {
-      const response = await API.post('/periode/tahun', { tahun });
-      if (response.data.status === 'success') {
-        setNewTahun('');
-        setShowDropdown(false);
-        setMessage('✅ Tahun berhasil ditambahkan!');
-        setTimeout(() => setMessage(''), 3000);
-        fetchData();
-      }
-    } catch (error) {
-      console.error('Gagal menambah tahun:', error);
-      setTahunList(prev => {
-        const updated = [...prev, tahun];
-        return updated.sort((a, b) => {
-          const yearA = parseInt(a.split('/')[0]);
-          const yearB = parseInt(b.split('/')[0]);
-          return yearB - yearA;
+      setSubmitting(true);
+      const token = localStorage.getItem("token");
+
+      let response;
+      if (editingPeriod) {
+        response = await API.put(`/periode/tahun/${editingPeriod.tahun}`, formData, {
+          headers: { Authorization: `Bearer ${token}` },
         });
-      });
-      setNewTahun('');
-      setShowDropdown(false);
-      setMessage('✅ Tahun berhasil ditambahkan!');
-      setTimeout(() => setMessage(''), 3000);
-    }
-  };
-
-  const handleSimpan = async () => {
-    if (selectedTahun.length === 0) {
-      setMessage('⚠️ Pilih minimal 1 tahun!');
-      setTimeout(() => setMessage(''), 3000);
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const response = await API.post('/periode/aktif', { 
-        tahun_list: selectedTahun 
-      });
-      if (response.data.status === 'success') {
-        setMessage('✅ Periode aktif berhasil disimpan!');
-        setTimeout(() => setMessage(''), 3000);
+      } else {
+        response = await API.post("/periode/tahun", formData, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
       }
-    } catch (error) {
-      console.error('Gagal menyimpan:', error);
-      setMessage('❌ Gagal menyimpan. Coba lagi.');
-      setTimeout(() => setMessage(''), 3000);
+
+      if (response.data.status === "success") {
+        setSuccessMessage(editingPeriod ? "✅ Periode berhasil diupdate!" : "✅ Periode berhasil ditambahkan!");
+        setTimeout(() => setSuccessMessage(""), 3000);
+        closeModal();
+        fetchPeriods();
+      }
+    } catch (err) {
+      console.error("Error saving period:", err);
+      setError("❌ Gagal menyimpan periode.");
     } finally {
-      setSaving(false);
+      setSubmitting(false);
     }
   };
 
-  const handleHapusTahun = async (tahun) => {
-    if (!window.confirm(`Hapus tahun "${tahun}"?`)) return;
-
-    if (selectedTahun.includes(tahun)) {
-      setSelectedTahun(prev => prev.filter(t => t !== tahun));
-    }
+  const handleDelete = async (tahun) => {
+    if (!window.confirm("Hapus periode ini?")) return;
 
     try {
-      await API.delete(`/periode/tahun/${encodeURIComponent(tahun)}`);
-      setMessage('✅ Tahun berhasil dihapus!');
-      setTimeout(() => setMessage(''), 3000);
-      fetchData();
-    } catch (error) {
-      setTahunList(prev => prev.filter(t => t !== tahun));
-      setMessage('✅ Tahun berhasil dihapus!');
-      setTimeout(() => setMessage(''), 3000);
+      const token = localStorage.getItem("token");
+      await API.delete(`/periode/tahun/${tahun}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setSuccessMessage("✅ Periode berhasil dihapus!");
+      setTimeout(() => setSuccessMessage(""), 3000);
+      fetchPeriods();
+    } catch (err) {
+      setError("❌ Gagal menghapus periode.");
     }
   };
 
-  const sortedTahunList = [...tahunList].sort((a, b) => {
-    const yearA = parseInt(a.split('/')[0]);
-    const yearB = parseInt(b.split('/')[0]);
-    return yearB - yearA;
-  });
+  const handleEdit = (period) => {
+    setEditingPeriod(period);
+    setFormData({
+      nama_periode: period.nama_periode || "",
+      tahun: period.tahun || "",
+      status_periode: period.status_periode || "Nonaktif",
+    });
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingPeriod(null);
+    setFormData({
+      nama_periode: "",
+      tahun: "",
+      status_periode: "Nonaktif",
+    });
+    setError("");
+  };
+
+  const getStatusBadge = (status) => {
+    return status === "Aktif"
+      ? "bg-success"
+      : "bg-secondary";
+  };
 
   if (loading) {
     return (
-      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "60vh" }}>
         <div className="text-center">
-          <div className="spinner-border text-primary" role="status" />
+          <div className="spinner-border text-primary" />
           <p className="mt-3 text-muted">Memuat data periode...</p>
         </div>
       </div>
@@ -196,9 +167,14 @@ function KelolaPeriodeAktif({ user, onLogout, onNavigate }) {
       <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
         <h1 className="text-primary h4 mb-0">📅 Kelola Periode Aktif</h1>
         <div className="d-flex align-items-center gap-2 flex-wrap">
-          <span className="text-nowrap small">Halo, <strong>{user.nama_lengkap}</strong></span>
+          <span className="text-nowrap small">
+            Halo, <strong>{user.nama_lengkap}</strong>
+          </span>
           <span className="badge bg-secondary small">{user.role}</span>
-          <button className="btn btn-outline-secondary btn-sm" onClick={() => onNavigate('dashboard')}>
+          <button
+            className="btn btn-outline-secondary btn-sm"
+            onClick={() => onNavigate("dashboard")}
+          >
             📊 Dashboard
           </button>
           <button className="btn btn-danger btn-sm" onClick={onLogout}>
@@ -207,210 +183,156 @@ function KelolaPeriodeAktif({ user, onLogout, onNavigate }) {
         </div>
       </div>
 
-      {/* Pesan */}
-      {message && (
-        <div className={`alert ${message.includes('✅') ? 'alert-success' : 'alert-warning'} alert-dismissible fade show py-2 small`}>
-          {message}
-          <button type="button" className="btn-close" onClick={() => setMessage('')}></button>
+      {successMessage && (
+        <div className="alert alert-success py-2 mb-3">{successMessage}</div>
+      )}
+
+      {error && (
+        <div className="alert alert-danger py-2 mb-3 d-flex align-items-center justify-content-between">
+          <span>{error}</span>
+          <button className="btn-close" onClick={() => setError("")}></button>
         </div>
       )}
 
-      {/* Info Periode Aktif */}
-      <div className="alert alert-info py-2 small mb-3">
-        <span className="me-2">📌</span>
-        <strong>Periode Aktif Saat Ini:</strong>{' '}
-        {selectedTahun.length > 0 ? (
-          selectedTahun.map((t, i) => (
-            <span key={i} className="badge bg-success me-1">{t}</span>
-          ))
+      <div className="mb-3">
+        <button className="btn btn-success" onClick={() => setShowModal(true)}>
+          ➕ Tambah Periode
+        </button>
+      </div>
+
+      <div className="row g-3">
+        {periods.length === 0 ? (
+          <div className="col-12">
+            <div className="card shadow-sm">
+              <div className="card-body text-center py-4 text-muted">
+                Belum ada periode
+              </div>
+            </div>
+          </div>
         ) : (
-          <span className="text-muted">Belum dipilih</span>
+          periods.map((period, index) => (
+            <div key={index} className="col-12 col-md-6 col-lg-4">
+              <div className="card shadow-sm h-100">
+                <div className="card-body">
+                  <div className="d-flex justify-content-between align-items-start mb-2">
+                    <h6 className="card-title mb-0">{period.nama_periode}</h6>
+                    <span className={`badge ${getStatusBadge(period.status_periode)}`}>
+                      {period.status_periode}
+                    </span>
+                  </div>
+                  <p className="card-text small text-muted mb-3">
+                    Tahun: <strong>{period.tahun}</strong>
+                  </p>
+                  <div className="d-flex gap-2">
+                    <button
+                      className="btn btn-warning btn-sm flex-1"
+                      onClick={() => handleEdit(period)}
+                    >
+                      ✏️ Edit
+                    </button>
+                    <button
+                      className="btn btn-danger btn-sm flex-1"
+                      onClick={() => handleDelete(period.tahun)}
+                    >
+                      🗑️ Hapus
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))
         )}
       </div>
 
-      {/* Card Tabel */}
-      <div className="card shadow-sm w-100">
-        <div className="card-header bg-primary text-white d-flex flex-wrap justify-content-between align-items-center py-2 gap-2">
-          <h5 className="mb-0 h6">📋 Daftar Tahun - Pilih Periode Aktif</h5>
-          <span className={`badge ${selectedTahun.length >= 2 ? 'bg-danger' : 'bg-light text-dark'}`}>
-            Terpilih: {selectedTahun.length}/2
-          </span>
-        </div>
-        <div className="card-body p-2 p-md-3">
-          <table className="table table-bordered table-hover align-middle mb-0 w-100">
-            <thead className="table-light text-center">
-              <tr>
-                <th style={{ width: '12%' }}>Pilih</th>
-                <th style={{ width: '43%' }}>Tahun</th>
-                <th style={{ width: '25%' }}>Status</th>
-                <th style={{ width: '20%' }}>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedTahunList.length === 0 ? (
-                <tr>
-                  <td colSpan="4" className="text-center py-4 text-muted small">
-                    📭 Belum ada tahun tersedia. Silakan tambahkan di bawah.
-                  </td>
-                </tr>
-              ) : (
-                sortedTahunList.map((tahun, index) => {
-                  const isSelected = selectedTahun.includes(tahun);
-                  const isDisabled = !isSelected && selectedTahun.length >= 2;
-                  
-                  return (
-                    <tr key={index} className={isSelected ? 'table-success' : ''}>
-                      <td className="text-center">
-                        <input
-                          type="checkbox"
-                          style={{ 
-                            width: '18px', 
-                            height: '18px', 
-                            cursor: isDisabled ? 'not-allowed' : 'pointer',
-                            opacity: isDisabled ? '0.4' : '1'
-                          }}
-                          checked={isSelected}
-                          onChange={() => handleCheckboxChange(tahun)}
-                          disabled={isDisabled}
-                        />
-                      </td>
-                      <td><strong className="small">{tahun}</strong></td>
-                      <td className="text-center">
-                        {isSelected ? (
-                          <span className="badge bg-success small px-2">✅ Aktif</span>
-                        ) : isDisabled ? (
-                          <span className="badge bg-secondary small px-2">🔒 Maks. 2</span>
-                        ) : (
-                          <span className="badge bg-light text-dark border small px-2">⬜ Tidak Aktif</span>
-                        )}
-                      </td>
-                      <td className="text-center">
-                        <button 
-                          className="btn btn-outline-danger btn-sm"
-                          onClick={() => handleHapusTahun(tahun)}
-                          title="Hapus"
-                        >
-                          🗑️
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
+      {/* Modal */}
+      {showModal && (
+        <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header bg-primary text-white py-2">
+                <h5 className="modal-title h6">
+                  {editingPeriod ? "✏️ Edit Periode" : "➕ Tambah Periode"}
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close btn-close-white"
+                  onClick={closeModal}
+                ></button>
+              </div>
+              <form onSubmit={handleSubmit}>
+                <div className="modal-body">
+                  {error && (
+                    <div className="alert alert-danger py-2 mb-3">{error}</div>
+                  )}
 
-              {/* Baris Input Tambah Tahun */}
-              <tr className="table-active">
-                <td></td>
-                <td>
-                  <div className="position-relative" ref={dropdownRef}>
-                    <div className="input-group input-group-sm">
-                      <span className="input-group-text bg-white border-end-0 ps-2 pe-1">➕</span>
-                      <input
-                        ref={inputRef}
-                        type="text"
-                        className="form-control border-start-0 border-end-0"
-                        placeholder="Ketik atau pilih tahun..."
-                        value={newTahun}
-                        onChange={(e) => {
-                          setNewTahun(e.target.value);
-                          setShowDropdown(true);
-                        }}
-                        onFocus={() => setShowDropdown(true)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleTambahTahun();
-                          }
-                        }}
-                      />
-                      <button 
-                        className="btn btn-outline-secondary px-2" 
-                        type="button"
-                        onClick={() => {
-                          setShowDropdown(!showDropdown);
-                          if (!showDropdown) inputRef.current?.focus();
-                        }}
-                      >
-                        ▼
-                      </button>
-                    </div>
-
-                    {showDropdown && (
-                      <ul 
-                        className="list-group position-absolute shadow"
-                        style={{ 
-                          zIndex: 1050, 
-                          maxHeight: '180px', 
-                          overflowY: 'auto',
-                          width: '100%',
-                          top: '100%',
-                          left: 0,
-                          minWidth: '200px'
-                        }}
-                      >
-                        {filteredSuggestions.length > 0 ? (
-                          filteredSuggestions.map((year, i) => (
-                            <li
-                              key={i}
-                              className="list-group-item list-group-item-action py-1 px-3 small"
-                              style={{ cursor: 'pointer' }}
-                              onClick={() => handleTambahTahun(year)}
-                            >
-                              {year}
-                            </li>
-                          ))
-                        ) : newTahun.trim() ? (
-                          <li
-                            className="list-group-item list-group-item-action py-1 px-3 text-primary small"
-                            style={{ cursor: 'pointer' }}
-                            onClick={() => handleTambahTahun(newTahun.trim())}
-                          >
-                            ➕ Tambah "{newTahun.trim()}" (baru)
-                          </li>
-                        ) : (
-                          <li className="list-group-item py-1 px-3 text-muted" style={{ fontSize: '12px' }}>
-                            Ketik untuk mencari...
-                          </li>
-                        )}
-                      </ul>
-                    )}
+                  <div className="mb-3">
+                    <label className="form-label small fw-bold">
+                      Nama Periode <span className="text-danger">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      name="nama_periode"
+                      value={formData.nama_periode}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="Contoh: Periode 2026/2027"
+                    />
                   </div>
-                </td>
-                <td></td>
-                <td className="text-center">
-                  <button 
-                    className="btn btn-success btn-sm"
-                    onClick={() => handleTambahTahun()}
-                  >
-                    ➕ Tambah
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
 
-        {/* Footer */}
-        <div className="card-footer d-flex flex-wrap justify-content-between align-items-center py-2 gap-2">
-          <small className="text-muted">
-            💡 Maksimal memilih <strong>2 tahun</strong>
-          </small>
-          <button 
-            className="btn btn-primary"
-            onClick={handleSimpan}
-            disabled={selectedTahun.length === 0 || saving}
-          >
-            {saving ? (
-              <>
-                <span className="spinner-border spinner-border-sm me-1" style={{ width: '14px', height: '14px' }}></span>
-                Menyimpan...
-              </>
-            ) : (
-              <>💾 Simpan Periode Aktif</>
-            )}
-          </button>
+                  <div className="mb-3">
+                    <label className="form-label small fw-bold">
+                      Tahun <span className="text-danger">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      name="tahun"
+                      value={formData.tahun}
+                      onChange={handleInputChange}
+                      onKeyDown={(e) => {
+                        const allowedKeys = ["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab", "Home", "End", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
+                        if (!allowedKeys.includes(e.key) && !e.ctrlKey && !e.metaKey) {
+                          e.preventDefault();
+                        }
+                      }}
+                      required
+                      placeholder="Masukkan 4 digit tahun"
+                      maxLength="4"
+                      inputMode="numeric"
+                      autoComplete="off"
+                    />
+                    <small className="text-muted">
+                      ✍️ Masukkan 4 digit tahun, contoh: 2026
+                    </small>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label small fw-bold">Status</label>
+                    <select
+                      className="form-select form-select-sm"
+                      name="status_periode"
+                      value={formData.status_periode}
+                      onChange={handleInputChange}
+                    >
+                      <option value="Aktif">🟢 Aktif</option>
+                      <option value="Nonaktif">⚪ Nonaktif</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="modal-footer py-2">
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={closeModal}>
+                    ❌ Batal
+                  </button>
+                  <button type="submit" className="btn btn-primary btn-sm" disabled={submitting}>
+                    {submitting ? "⏳ Menyimpan..." : "💾 Simpan"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
