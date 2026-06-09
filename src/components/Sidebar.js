@@ -1,277 +1,352 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from 'react';
+import API from '../services/api';
+import { Pie, Bar } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+} from 'chart.js';
 
-function Sidebar({
-  activeMenu,
-  onNavigate,
-  user,
-  onLogout,
-  onToggle,
-  isSidebarOpen,
-}) {
-  const [openDropdown, setOpenDropdown] = useState(null);
-  const isOpen = isSidebarOpen;
+// Register ChartJS
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
 
-  const toggleDropdown = (menuId) => {
-    setOpenDropdown(openDropdown === menuId ? null : menuId);
+function Dashboard({ user, onLogout, onNavigate }) {
+  const [status, setStatus] = useState('Loading...');
+  const [stats, setStats] = useState({
+    total_pemasukan: 0,
+    total_pengeluaran: 0,
+    sisa_saldo: 0,
+    program_aktif: 0,
+    periode_aktif: [],
+  });
+  const [programList, setProgramList] = useState([]);
+  const [transaksiList, setTransaksiList] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    try {
+      const healthRes = await API.get('/health');
+      setStatus(healthRes.data.message || 'Running');
+
+      const statsRes = await API.get('/dashboard/stats');
+      if (statsRes.data.status === 'success') {
+        setStats(statsRes.data.data);
+      }
+
+      // Ambil program untuk tabel
+      const progRes = await API.get('/program-kerja');
+      if (progRes.data.status === 'success') {
+        const periodeAktif = statsRes.data.data?.periode_aktif || [];
+        let filtered = progRes.data.data;
+        if (periodeAktif.length > 0) {
+          filtered = filtered.filter((p) =>
+            periodeAktif.some((periode) => p.periode?.toString() === periode.toString())
+          );
+        }
+        setProgramList(filtered.slice(0, 5)); // 5 terbaru
+      }
+
+      // Ambil transaksi untuk chart
+      const transRes = await API.get('/transaksi');
+      if (transRes.data.status === 'success') {
+        setTransaksiList(transRes.data.data);
+      }
+    } catch (error) {
+      console.error('Gagal fetch dashboard:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // ============================================
-  // MENU UNTUK ADMIN
-  // ============================================
-  const adminMenu = [
-    { id: "dashboard", name: "Dashboard", icon: "🏠" },
-    { id: "kelola-user", name: "Kelola Pengguna", icon: "👥" },
-    { id: "periode-aktif", name: "Kelola Periode Aktif", icon: "📅" },
-    { id: "kelola-biaya", name: "Kelola Daftar Biaya", icon: "💰" },
-    { id: "riwayat", name: "Riwayat Pelaksanaan", icon: "📜" },
-    { id: "lihat-laporan", name: "Lihat Laporan Keuangan", icon: "📄" },
-    { id: 'monitor-log', name: 'Monitor Log', icon: '📋' },
+  const formatRupiah = (angka) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(angka || 0);
+  };
 
-  ];
+  // Data Pie Chart
+  const pieData = {
+    labels: ['Pemasukan', 'Pengeluaran'],
+    datasets: [
+      {
+        data: [stats.total_pemasukan, stats.total_pengeluaran],
+        backgroundColor: ['#28a745', '#dc3545'],
+        borderColor: ['#1e7e34', '#b02a37'],
+        borderWidth: 2,
+      },
+    ],
+  };
 
-  // ============================================
-  // MENU UNTUK KETUA
-  // ============================================
-  const ketuaMenu = [
-    { id: "dashboard", name: "Dashboard", icon: "🏠" },
-    { id: "periode-aktif", name: "Kelola Periode Aktif", icon: "📅" },
-    { id: "kelola-biaya", name: "Kelola Daftar Biaya", icon: "💰" },
-    { id: "kelola-rab", name: "Kelola RAB", icon: "📊" },
-    { id: 'monitor-log', name: 'Monitor Log', icon: '📋' },
+  // Data Bar Chart - Transaksi per Program
+  const programNames = [...new Set(transaksiList.map((t) => t.nama_program))];
+  const barData = {
+    labels: programNames,
+    datasets: [
+      {
+        label: 'Total Transaksi',
+        data: programNames.map((name) =>
+          transaksiList
+            .filter((t) => t.nama_program === name)
+            .reduce((sum, t) => sum + t.nominal, 0)
+        ),
+        backgroundColor: '#007bff',
+        borderRadius: 8,
+      },
+    ],
+  };
 
-    {
-      id: "manajemen-proker",
-      name: "Manajemen Program Kerja",
-      icon: "📋",
-      isDropdown: true,
-      children: [
-        { id: "program-kerja", name: "Kelola Program Kerja", icon: "📋" },
-        {
-          id: "update-status",
-          name: "Kelola Status Program Kerja",
-          icon: "🔄",
-        },
-        {
-          id: "konfirmasi-transaksi",
-          name: "Konfirmasi Transaksi",
-          icon: "✅",
-        },
-      ],
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: { font: { size: 12 } },
+      },
     },
-    { id: "riwayat", name: "Riwayat Pelaksanaan", icon: "📜" },
-    { id: "lihat-laporan", name: "Lihat Laporan Keuangan", icon: "📄" },
-  ];
+  };
 
-  // ============================================
-  // MENU UNTUK BENDAHARA
-  // ============================================
-  const bendaharaMenu = [
-    { id: "dashboard", name: "Dashboard", icon: "🏠" },
-    { id: "transaksi", name: "Transaksi Kas", icon: "💰" },
-    { id: "riwayat", name: "Riwayat Pelaksanaan", icon: "📜" },
-    { id: "lihat-laporan", name: "Lihat Laporan Keuangan", icon: "📄" },
-    
-  ];
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'Selesai':
+        return 'bg-success';
+      case 'Berjalan':
+        return 'bg-primary';
+      case 'Batal':
+        return 'bg-danger';
+      default:
+        return 'bg-warning';
+    }
+  };
 
-  // ============================================
-  // MENU UNTUK ANGGOTA UMUM
-  // ============================================
-  const anggotaMenu = [
-    { id: "dashboard", name: "Dashboard", icon: "🏠" },
-    { id: "riwayat", name: "Riwayat Pelaksanaan", icon: "📜" },
-    { id: "lihat-laporan", name: "Lihat Laporan Keuangan", icon: "📄" },
-  ];
+  const getProgressColor = (status) => {
+    switch (status) {
+      case 'Selesai':
+        return 'bg-success';
+      case 'Berjalan':
+        return 'bg-primary';
+      default:
+        return 'bg-warning';
+    }
+  };
 
-  // Pilih menu berdasarkan role
-  let menus = [];
-  if (user.role === 'Admin') menus = adminMenu;
-  else if (user.role === 'Ketua') menus = ketuaMenu;
-  else if (user.role === 'Bendahara') menus = bendaharaMenu;
-  else if (user.role === 'Anggota Umum') menus = anggotaMenu;
+  const getProgressWidth = (status) => {
+    switch (status) {
+      case 'Selesai':
+        return '100%';
+      case 'Berjalan':
+        return '60%';
+      default:
+        return '20%';
+    }
+  };
 
-  const renderMenuItem = (item) => (
-    <button
-      key={item.id}
-      className={`nav-link text-start text-white mb-1 ${activeMenu === item.id ? "bg-primary rounded" : ""}`}
-      onClick={() => onNavigate(item.id)}
-      style={{
-        backgroundColor: activeMenu === item.id ? "#0d6efd" : "transparent",
-        border: "none",
-        cursor: "pointer",
-        padding: "8px 12px",
-        borderRadius: "5px",
-        display: "flex",
-        alignItems: "center",
-        gap: "10px",
-        width: "100%",
-      }}
-    >
-      <span>{item.icon}</span>
-      {isOpen && <span>{item.name}</span>}
-    </button>
-  );
-
-  const renderDropdownMenu = (item) => (
-    <div key={item.id} className="mb-1">
-      <button
-        className={`nav-link text-start text-white ${openDropdown === item.id ? "bg-primary rounded" : ""}`}
-        onClick={() => toggleDropdown(item.id)}
-        style={{
-          backgroundColor: openDropdown === item.id ? "#0d6efd" : "transparent",
-          border: "none",
-          cursor: "pointer",
-          padding: "8px 12px",
-          borderRadius: "5px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          width: "100%",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <span>{item.icon}</span>
-          {isOpen && <span>{item.name}</span>}
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
+        <div className="text-center">
+          <div className="spinner-border text-primary" />
+          <p className="mt-3 text-muted">Memuat dashboard...</p>
         </div>
-        {isOpen && <span>{openDropdown === item.id ? "▲" : "▼"}</span>}
-      </button>
+      </div>
+    );
+  }
 
-      {isOpen && openDropdown === item.id && (
-        <div className="ms-3 mt-1">
-          {item.children.map((child) => (
-            <button
-              key={child.id}
-              className={`nav-link text-start text-white mb-1 ${activeMenu === child.id ? "bg-primary rounded" : ""}`}
-              onClick={() => onNavigate(child.id)}
-              style={{
-                backgroundColor:
-                  activeMenu === child.id ? "#0d6efd" : "transparent",
-                border: "none",
-                cursor: "pointer",
-                padding: "8px 12px",
-                paddingLeft: "35px",
-                borderRadius: "5px",
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-                width: "100%",
-              }}
-            >
-              <span>{child.icon}</span>
-              <span>{child.name}</span>
-            </button>
+  return (
+    <div className="px-3 px-md-4 py-3 w-100">
+      {/* Header */}
+      <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+        <h1 className="text-primary h4 mb-0">📊 Dashboard</h1>
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          <span className="text-nowrap small">Halo, <strong>{user.nama_lengkap}</strong></span>
+          <span className="badge bg-secondary small">{user.role}</span>
+          <button className="btn btn-danger btn-sm" onClick={onLogout}>🚪 Logout</button>
+        </div>
+      </div>
+
+      {/* 4 Kartu Statistik */}
+      <div className="row g-2 mb-4">
+        <div className="col-6 col-md-3">
+          <div className="card bg-success text-white h-100 shadow-sm border-0">
+            <div className="card-body text-center py-3">
+              <small className="d-block opacity-75">💰 Total Kas Masuk</small>
+              <h5 className="mb-0 fw-bold">{formatRupiah(stats.total_pemasukan)}</h5>
+            </div>
+          </div>
+        </div>
+        <div className="col-6 col-md-3">
+          <div className="card bg-danger text-white h-100 shadow-sm border-0">
+            <div className="card-body text-center py-3">
+              <small className="d-block opacity-75">📤 Total Kas Keluar</small>
+              <h5 className="mb-0 fw-bold">{formatRupiah(stats.total_pengeluaran)}</h5>
+            </div>
+          </div>
+        </div>
+        <div className="col-6 col-md-3">
+          <div className="card bg-info text-white h-100 shadow-sm border-0">
+            <div className="card-body text-center py-3">
+              <small className="d-block opacity-75">💵 Sisa Saldo</small>
+              <h5 className="mb-0 fw-bold">{formatRupiah(stats.sisa_saldo)}</h5>
+            </div>
+          </div>
+        </div>
+        <div className="col-6 col-md-3">
+          <div className="card bg-warning h-100 shadow-sm border-0">
+            <div className="card-body text-center py-3">
+              <small className="d-block opacity-75">📋 Program Aktif</small>
+              <h5 className="mb-0 fw-bold">{stats.program_aktif}</h5>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Periode Aktif */}
+      {stats.periode_aktif && stats.periode_aktif.length > 0 && (
+        <div className="alert alert-info py-2 small mb-4 border-0 shadow-sm">
+          📅 <strong>Periode Aktif:</strong>{' '}
+          {stats.periode_aktif.map((t, i) => (
+            <span key={i} className="badge bg-success me-1">{t}</span>
           ))}
         </div>
       )}
-    </div>
-  );
 
-  return (
-    <div
-      className="d-flex flex-column vh-100 bg-dark text-white"
-      style={{
-        width: isOpen ? "280px" : "70px",
-        position: "fixed",
-        left: 0,
-        top: 0,
-        transition: "width 0.3s ease",
-        overflowX: "hidden",
-        zIndex: 1000,
-      }}
-    >
-      {/* Header dengan Tombol di Pojok Kanan Atas */}
-      <div className="d-flex justify-content-between align-items-center p-3 border-bottom border-secondary">
-        {isOpen && (
-          <div>
-            <h6 className="mb-0">GDB Cash Management</h6>
-            <small className="text-muted">{user.nama_lengkap}</small>
-            <br />
-            <span className="badge bg-info mt-1">{user.role}</span>
+      {/* Charts Row */}
+      <div className="row g-3 mb-4">
+        {/* Pie Chart */}
+        <div className="col-md-6">
+          <div className="card shadow-sm border-0 h-100">
+            <div className="card-header bg-white py-2 border-0">
+              <h6 className="mb-0">🍩 Pemasukan vs Pengeluaran</h6>
+            </div>
+            <div className="card-body d-flex align-items-center justify-content-center" style={{ height: '280px' }}>
+              {stats.total_pemasukan === 0 && stats.total_pengeluaran === 0 ? (
+                <p className="text-muted small">Belum ada data transaksi</p>
+              ) : (
+                <Pie data={pieData} options={chartOptions} />
+              )}
+            </div>
           </div>
-        )}
+        </div>
 
-        <button
-          className="btn rounded-circle d-flex align-items-center justify-content-center"
-          onClick={() => onToggle(!isSidebarOpen)}
-          style={{
-            width: "32px",
-            height: "32px",
-            backgroundColor: "#1976D2",
-            border: "none",
-            color: "white",
-            fontSize: "16px",
-            cursor: "pointer",
-            marginLeft: isOpen ? "0" : "auto",
-          }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.backgroundColor = "#0b5ed7")
-          }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.backgroundColor = "#1976D2")
-          }
-          title={isOpen ? "Tutup Sidebar" : "Buka Sidebar"}
-        >
-          {isOpen ? "✕" : "☰"}
-        </button>
+        {/* Bar Chart */}
+        <div className="col-md-6">
+          <div className="card shadow-sm border-0 h-100">
+            <div className="card-header bg-white py-2 border-0">
+              <h6 className="mb-0">📊 Transaksi per Program</h6>
+            </div>
+            <div className="card-body d-flex align-items-center justify-content-center" style={{ height: '280px' }}>
+              {programNames.length === 0 ? (
+                <p className="text-muted small">Belum ada data transaksi</p>
+              ) : (
+                <Bar data={barData} options={{ ...chartOptions, indexAxis: 'y' }} />
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Menu Utama */}
-      <nav
-        className="nav flex-column mt-3 px-2 overflow-auto"
-        style={{ flex: 1 }}
-      >
-        {menus.map((item) => {
-          if (item.isDropdown) {
-            return renderDropdownMenu(item);
-          } else {
-            return renderMenuItem(item);
-          }
-        })}
-      </nav>
-
-      {/* Garis Pemisah */}
-      <hr className="mx-2 my-2" />
-
-      {/* Menu Profil */}
-      <div className="px-2 mb-2">
-        <button
-          className={`nav-link text-start text-white w-100 ${activeMenu === "profil" ? "bg-primary rounded" : ""}`}
-          onClick={() => onNavigate("profil")}
-          style={{
-            backgroundColor:
-              activeMenu === "profil" ? "#0d6efd" : "transparent",
-            border: "none",
-            cursor: "pointer",
-            padding: "8px 12px",
-            borderRadius: "5px",
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-          }}
-        >
-          <span>👤</span>
-          {isOpen && <span>Profil Saya</span>}
-        </button>
+      {/* Program Terbaru */}
+      <div className="card shadow-sm border-0 mb-4">
+        <div className="card-header bg-white py-2 border-0 d-flex justify-content-between align-items-center">
+          <h6 className="mb-0">📋 Program Terbaru</h6>
+          <button className="btn btn-outline-primary btn-sm" onClick={() => onNavigate('program-kerja')}>
+            Lihat Semua
+          </button>
+        </div>
+        <div className="card-body p-2">
+          {programList.length === 0 ? (
+            <p className="text-muted small text-center py-3">Belum ada program kerja</p>
+          ) : (
+            <div className="table-responsive">
+              <table className="table table-borderless table-sm align-middle mb-0 small">
+                <thead className="text-muted border-bottom">
+                  <tr>
+                    <th>Program</th>
+                    <th>Status</th>
+                    <th style={{ width: '30%' }}>Progress</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {programList.map((prog) => (
+                    <tr key={prog.id_program}>
+                      <td><strong>{prog.nama_program}</strong></td>
+                      <td>
+                        <span className={`badge ${getStatusBadge(prog.status_program)}`}>
+                          {prog.status_program || 'Rencana'}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="progress" style={{ height: '8px' }}>
+                          <div
+                            className={`progress-bar ${getProgressColor(prog.status_program)}`}
+                            style={{ width: getProgressWidth(prog.status_program) }}
+                          ></div>
+                        </div>
+                        <small className="text-muted">{getProgressWidth(prog.status_program)}</small>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Tombol Logout */}
-      <div className="mt-auto p-3 border-top border-secondary">
-        <button
-          className="btn btn-danger w-100"
-          onClick={onLogout}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "10px",
-            padding: "8px",
-          }}
-        >
-          <span>🚪</span>
-          {isOpen && <span>Logout</span>}
-        </button>
+      {/* Quick Actions */}
+      <div className="card shadow-sm border-0 mb-4">
+        <div className="card-header bg-white py-2 border-0">
+          <h6 className="mb-0">⚡ Quick Actions</h6>
+        </div>
+        <div className="card-body py-3">
+          <div className="row g-2">
+            <div className="col-6 col-md-3">
+              <button className="btn btn-outline-primary w-100 py-3" onClick={() => onNavigate('program-kerja')}>
+                <div className="fs-4">📋</div>
+                <small>Program Kerja</small>
+              </button>
+            </div>
+            <div className="col-6 col-md-3">
+              <button className="btn btn-outline-success w-100 py-3" onClick={() => onNavigate('kelola-rab')}>
+                <div className="fs-4">💰</div>
+                <small>Kelola RAB</small>
+              </button>
+            </div>
+            <div className="col-6 col-md-3">
+              <button className="btn btn-outline-warning w-100 py-3" onClick={() => onNavigate('transaksi')}>
+                <div className="fs-4">💳</div>
+                <small>Transaksi</small>
+              </button>
+            </div>
+            <div className="col-6 col-md-3">
+              <button className="btn btn-outline-info w-100 py-3" onClick={() => onNavigate('lihat-laporan')}>
+                <div className="fs-4">📊</div>
+                <small>Laporan</small>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Status */}
+      <div className="text-center small text-muted">
+        Status: <strong className="text-success">{status}</strong> | Role: {user.role} | Email: {user.email}
       </div>
     </div>
   );
 }
 
-export default Sidebar;
+export default Dashboard;
