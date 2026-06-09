@@ -14,7 +14,6 @@ import Profil from './components/Profil';
 import RiwayatPelaksanaan from './components/RiwayatPelaksanaan';
 import LihatLaporan from './components/LihatLaporan';
 import KelolaPengguna from './components/KelolaPengguna';
-// ❌ HAPUS: import CetakLaporan from './components/CetakLaporan';
 import MonitorLog from './components/MonitorLog';
 
 function App() {
@@ -60,7 +59,6 @@ function App() {
     'riwayat': <RiwayatPelaksanaan user={user} onLogout={handleLogout} onNavigate={setCurrentPage} />,
     'lihat-laporan': <LihatLaporan user={user} onLogout={handleLogout} onNavigate={setCurrentPage} />,
     'kelola-user': <KelolaPengguna user={user} onLogout={handleLogout} onNavigate={setCurrentPage} />,
-    // ✅ ALIHKAN cetak-laporan ke LihatLaporan (agar link lama tidak error)
     'cetak-laporan': <LihatLaporan user={user} onLogout={handleLogout} onNavigate={setCurrentPage} />,
     'monitor-log': <MonitorLog user={user} onLogout={handleLogout} onNavigate={setCurrentPage} />,
   };
