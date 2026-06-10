@@ -296,7 +296,85 @@ function Dashboard({ user, onLogout, onNavigate }) {
       {/* Tabel Transaksi - Selain Admin */}
       {user.role !== "Admin" && (
         <div className="card shadow-sm">
-          ... tabel transaksi terbaru (asli) ...
+          <div className="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
+            <h5 className="mb-0 h6">📋 Transaksi Terbaru</h5>
+            <button
+              className="btn btn-light btn-sm"
+              onClick={() => onNavigate("transaksi")}
+            >
+              Lihat Semua
+            </button>
+          </div>
+          <div className="card-body p-2 p-md-3">
+            {recentTransactions.length === 0 ? (
+              <div className="text-center py-4 text-muted">
+                Belum ada transaksi
+              </div>
+            ) : (
+              <div className="table-responsive">
+                <table className="table table-bordered table-hover align-middle mb-0 small">
+                  <thead className="table-light text-center">
+                    <tr>
+                      <th>Tanggal</th>
+                      <th>Program</th>
+                      <th>Jenis</th>
+                      <th>Nominal</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentTransactions.map((t, index) => (
+                      <tr key={index}>
+                        <td className="text-center">
+                          {formatDate(t.tanggal || t.created_at)}
+                        </td>
+                        <td>{t.nama_program || "-"}</td>
+                        <td className="text-center">
+                          <span
+                            className={`badge ${
+                              t.jenis === "Masuk" ? "bg-success" : "bg-danger"
+                            }`}
+                          >
+                            {t.jenis}
+                          </span>
+                        </td>
+                        <td className="text-end">
+                          <span
+                            className={
+                              t.jenis === "Masuk"
+                                ? "text-success"
+                                : "text-danger"
+                            }
+                          >
+                            {formatRupiah(t.nominal)}
+                          </span>
+                        </td>
+                        <td className="text-center">
+                          <span
+                            className={`badge ${
+                              t.status === "Valid" ||
+                              t.status_validasi === "Valid"
+                                ? "bg-success"
+                                : t.status === "Pending"
+                                  ? "bg-warning text-dark"
+                                  : "bg-danger"
+                            }`}
+                          >
+                            {t.status === "Valid" ||
+                            t.status_validasi === "Valid"
+                              ? "✅ Valid"
+                              : t.status === "Pending"
+                                ? "⏳ Pending"
+                                : "❌ Tidak Valid"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
