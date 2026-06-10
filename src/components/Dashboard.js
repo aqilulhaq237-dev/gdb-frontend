@@ -4,6 +4,14 @@ import API from "../services/api";
 function Dashboard({ user, onLogout, onNavigate }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [stats, setStats] = useState({
+    totalKasMasuk: 0,
+    totalKasKeluar: 0,
+    sisaSaldo: 0,
+    totalProgram: 0,
+    programAktif: 0,
+    programSelesai: 0,
+  });
   const [pendingApproval, setPendingApproval] = useState(0);
   const [users, setUsers] = useState([]);
   const [recentTransactions, setRecentTransactions] = useState([]);
