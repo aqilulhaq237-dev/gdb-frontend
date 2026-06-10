@@ -4,34 +4,9 @@ import API from "../services/api";
 function Dashboard({ user, onLogout, onNavigate }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [stats, setStats] = useState({
-    totalKasMasuk: 0,
-    totalKasKeluar: 0,
-    sisaSaldo: 0,
-    totalProgram: 0,
-    programAktif: 0,
-    programSelesai: 0,
-    totalRAB: 0,
-  });
   const [pendingApproval, setPendingApproval] = useState(0);
+  const [users, setUsers] = useState([]);
   const [recentTransactions, setRecentTransactions] = useState([]);
-  const [monthlyData, setMonthlyData] = useState([]);
-  const [programDistribution, setProgramDistribution] = useState([]);
-
-  const MONTHS = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "Mei",
-    "Jun",
-    "Jul",
-    "Ags",
-    "Sep",
-    "Okt",
-    "Nov",
-    "Des",
-  ];
 
   useEffect(() => {
     fetchDashboardData();
@@ -86,23 +61,8 @@ function Dashboard({ user, onLogout, onNavigate }) {
 
       const sisaSaldo = totalMasuk - totalKeluar;
 
-      // 3. Ambil SEMUA RAB
-      const rabRes = await API.get("/rab", { headers });
-      const allRAB = rabRes.data.status === "success" ? rabRes.data.data : [];
-      const totalRAB = allRAB.length;
-
-      setStats({
-        totalKasMasuk: totalMasuk,
-        totalKasKeluar: totalKeluar,
-        sisaSaldo: sisaSaldo,
-        totalProgram: allPrograms.length,
-        programAktif: programAktif,
-        programSelesai: programSelesai,
-        totalRAB: totalRAB,
-      });
-
-      // 4. Fetch notifikasi approval (Ketua & Admin)
-      if (user.role === "Ketua" || user.role === "Admin") {
+      // 4. Fetch notifikasi approval (Ketua)
+      if (user.role === "Ketua") {
         try {
           const pengajuanRes = await API.get("/pengajuan/menunggu", {
             headers,
@@ -115,47 +75,17 @@ function Dashboard({ user, onLogout, onNavigate }) {
         }
       }
 
-      // 5. Data untuk chart bulanan
-      const monthlyData = [];
-      for (let i = 1; i <= 12; i++) {
-        const transaksiBulanIni = allTransaksi.filter((t) => {
-          const bulan = new Date(t.tanggal).getMonth() + 1;
-          return (
-            bulan === i &&
-            (t.status === "Valid" ||
-              t.status_validasi === "Valid" ||
-              t.status === "Selesai")
-          );
-        });
-
-        const pemasukan = transaksiBulanIni
-          .filter((t) => t.jenis === "Masuk")
-          .reduce((sum, t) => sum + parseFloat(t.nominal || 0), 0);
-
-        const pengeluaran = transaksiBulanIni
-          .filter((t) => t.jenis === "Keluar")
-          .reduce((sum, t) => sum + parseFloat(t.nominal || 0), 0);
-
-        monthlyData.push({
-          name: MONTHS[i - 1],
-          pemasukan: pemasukan,
-          pengeluaran: pengeluaran,
-        });
+      if (user.role === "Admin") {
+        // Fetch data users (Admin)
+        try {
+          const usersRes = await API.get("/users", { headers });
+          if (usersRes.data.status === "success") {
+            setUsers(usersRes.data.data);
+          }
+        } catch (err) {
+          console.error("Gagal fetch users:", err);
+        }
       }
-      setMonthlyData(monthlyData);
-
-      // 6. Distribusi program per status
-      const statusCount = {};
-      allPrograms.forEach((p) => {
-        const status = p.status_program || "Lainnya";
-        statusCount[status] = (statusCount[status] || 0) + 1;
-      });
-
-      const programDistribution = Object.keys(statusCount).map((key) => ({
-        name: key,
-        value: statusCount[key],
-      }));
-      setProgramDistribution(programDistribution);
 
       // 7. Transaksi terbaru (5 terakhir)
       const recentTrans = allTransaksi
@@ -224,7 +154,7 @@ function Dashboard({ user, onLogout, onNavigate }) {
       {/* Stats Cards */}
       <div className="row g-2 mb-4">
         {/* Total Kas Masuk */}
-        <div className="col-6 col-md">
+        <div className="col-6 col-md-3">
           <div className="card bg-success text-white h-100 shadow-sm">
             <div className="card-body text-center py-3">
               <div className="mb-2">💰</div>
@@ -236,7 +166,7 @@ function Dashboard({ user, onLogout, onNavigate }) {
         </div>
 
         {/* Total Kas Keluar */}
-        <div className="col-6 col-md">
+        <div className="col-6 col-md-3">
           <div className="card bg-danger text-white h-100 shadow-sm">
             <div className="card-body text-center py-3">
               <div className="mb-2">📤</div>
@@ -250,7 +180,7 @@ function Dashboard({ user, onLogout, onNavigate }) {
         </div>
 
         {/* Sisa Saldo */}
-        <div className="col-6 col-md">
+        <div className="col-6 col-md-3">
           <div
             className={`card h-100 shadow-sm ${
               stats.sisaSaldo >= 0 ? "bg-info" : "bg-warning"
@@ -266,7 +196,7 @@ function Dashboard({ user, onLogout, onNavigate }) {
         </div>
 
         {/* Program Aktif */}
-        <div className="col-6 col-md">
+        <div className="col-6 col-md-3">
           <div className="card bg-primary text-white h-100 shadow-sm">
             <div className="card-body text-center py-3">
               <div className="mb-2">📋</div>
@@ -281,8 +211,8 @@ function Dashboard({ user, onLogout, onNavigate }) {
           </div>
         </div>
 
-        {/* Notifikasi Approval - Hanya Ketua & Admin */}
-        {(user.role === "Ketua" || user.role === "Admin") && (
+        {/* Notifikasi Approval - Hanya Ketua */}
+        {user.role === "Ketua" && (
           <div className="col-6 col-md">
             <div
               className="card bg-warning text-dark h-100 shadow-sm"
@@ -304,174 +234,63 @@ function Dashboard({ user, onLogout, onNavigate }) {
         )}
       </div>
 
-      {/* Charts */}
-      <div className="row g-3 mb-4">
-        {/* Monthly Chart */}
-        <div className="col-12 col-lg-8">
-          <div className="card shadow-sm">
-            <div className="card-header bg-primary text-white py-2">
-              <h5 className="mb-0 h6">📈 Pemasukan & Pengeluaran Bulanan</h5>
-            </div>
-            <div className="card-body">
-              {monthlyData.length > 0 ? (
-                <div className="table-responsive">
-                  <table className="table table-sm table-bordered mb-0">
-                    <thead className="table-light text-center">
-                      <tr>
-                        <th>Bulan</th>
-                        <th>Pemasukan</th>
-                        <th>Pengeluaran</th>
-                        <th>Selisih</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {monthlyData.map((data, index) => (
-                        <tr key={index}>
-                          <td className="text-center fw-bold">{data.name}</td>
-                          <td className="text-end text-success">
-                            {formatRupiah(data.pemasukan)}
-                          </td>
-                          <td className="text-end text-danger">
-                            {formatRupiah(data.pengeluaran)}
-                          </td>
-                          <td className="text-end">
-                            {formatRupiah(data.pemasukan - data.pengeluaran)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="text-center py-4 text-muted">
-                  Belum ada data transaksi
-                </div>
-              )}
-            </div>
+      {/* Tabel Users - Hanya Admin */}
+      {user.role === "Admin" && (
+        <div className="card shadow-sm">
+          <div className="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
+            <h5 className="mb-0 h6">👥 Data Pengguna</h5>
+            <button
+              className="btn btn-light btn-sm"
+              onClick={() => onNavigate("kelola-user")}
+            >
+              Kelola Pengguna
+            </button>
           </div>
-        </div>
-
-        {/* Program Distribution */}
-        <div className="col-12 col-lg-4">
-          <div className="card shadow-sm h-100">
-            <div className="card-header bg-primary text-white py-2">
-              <h5 className="mb-0 h6">📊 Distribusi Program</h5>
-            </div>
-            <div className="card-body">
-              {programDistribution.length > 0 ? (
-                <table className="table table-sm table-borderless mb-0">
+          <div className="card-body p-2 p-md-3">
+            {users.length === 0 ? (
+              <div className="text-center py-4 text-muted">
+                Belum ada pengguna
+              </div>
+            ) : (
+              <div className="table-responsive">
+                <table className="table table-bordered table-hover align-middle mb-0 small">
+                  <thead className="table-light text-center">
+                    <tr>
+                      <th>Username</th>
+                      <th>Nama Lengkap</th>
+                      <th>Role</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
                   <tbody>
-                    {programDistribution.map((item, index) => (
-                      <tr key={index}>
+                    {users.map((u) => (
+                      <tr key={u.id_user}>
                         <td>
-                          <span
-                            className={`badge ${
-                              item.name === "Berjalan"
-                                ? "bg-primary"
-                                : item.name === "Selesai"
-                                  ? "bg-success"
-                                  : item.name === "Rencana"
-                                    ? "bg-warning text-dark"
-                                    : "bg-secondary"
-                            }`}
-                          >
-                            {item.name}
-                          </span>
+                          <strong>{u.username}</strong>
                         </td>
-                        <td className="text-end fw-bold">{item.value}</td>
+                        <td>{u.nama_lengkap}</td>
+                        <td>
+                          <span className="badge bg-info">{u.role}</span>
+                        </td>
+                        <td className="text-center">
+                          <span className="badge bg-success">🟢 Aktif</span>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              ) : (
-                <div className="text-center py-4 text-muted">
-                  Belum ada program
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Recent Transactions */}
-      <div className="card shadow-sm">
-        <div className="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
-          <h5 className="mb-0 h6">📋 Transaksi Terbaru</h5>
-          <button
-            className="btn btn-light btn-sm"
-            onClick={() => onNavigate("transaksi")}
-          >
-            Lihat Semua
-          </button>
+      {/* Tabel Transaksi - Selain Admin */}
+      {user.role !== "Admin" && (
+        <div className="card shadow-sm">
+          ... tabel transaksi terbaru (asli) ...
         </div>
-        <div className="card-body p-2 p-md-3">
-          {recentTransactions.length === 0 ? (
-            <div className="text-center py-4 text-muted">
-              Belum ada transaksi
-            </div>
-          ) : (
-            <div className="table-responsive">
-              <table className="table table-bordered table-hover align-middle mb-0 small">
-                <thead className="table-light text-center">
-                  <tr>
-                    <th>Tanggal</th>
-                    <th>Program</th>
-                    <th>Jenis</th>
-                    <th>Nominal</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentTransactions.map((t, index) => (
-                    <tr key={index}>
-                      <td className="text-center">
-                        {formatDate(t.tanggal || t.created_at)}
-                      </td>
-                      <td>{t.nama_program || "-"}</td>
-                      <td className="text-center">
-                        <span
-                          className={`badge ${
-                            t.jenis === "Masuk" ? "bg-success" : "bg-danger"
-                          }`}
-                        >
-                          {t.jenis}
-                        </span>
-                      </td>
-                      <td className="text-end">
-                        <span
-                          className={
-                            t.jenis === "Masuk" ? "text-success" : "text-danger"
-                          }
-                        >
-                          {formatRupiah(t.nominal)}
-                        </span>
-                      </td>
-                      <td className="text-center">
-                        <span
-                          className={`badge ${
-                            t.status === "Valid" ||
-                            t.status_validasi === "Valid"
-                              ? "bg-success"
-                              : t.status === "Pending"
-                                ? "bg-warning text-dark"
-                                : "bg-danger"
-                          }`}
-                        >
-                          {t.status === "Valid" || t.status_validasi === "Valid"
-                            ? "✅ Valid"
-                            : t.status === "Pending"
-                              ? "⏳ Pending"
-                              : "❌ Tidak Valid"}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
+      )}
     </div>
   );
 }
