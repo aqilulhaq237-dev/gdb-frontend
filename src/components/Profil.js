@@ -17,9 +17,36 @@ function Profil({ user, onLogout, onNavigate, onProfileUpdate }) {
   const [photoPreview, setPhotoPreview] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
+
+  const validateProfile = () => {
+    const errors = {};
+    if (!formData.nama_lengkap.trim()) {
+      errors.nama_lengkap = "Nama lengkap wajib diisi!";
+    }
+    if (!formData.email.trim()) {
+      errors.email = "Email wajib diisi!";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.email = "Format email tidak valid! Contoh: nama@domain.com";
+    }
+    if (formData.no_hp && !/^[0-9]{10,13}$/.test(formData.no_hp)) {
+      errors.no_hp = "No HP hanya angka, 10-13 digit! Contoh: 08123456789";
+    }
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleProfileChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    if (name === "no_hp") {
+      const cleaned = value.replace(/\D/g, "").slice(0, 13);
+      setFormData({ ...formData, no_hp: cleaned });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
+    if (formErrors[name]) {
+      setFormErrors({ ...formErrors, [name]: "" });
+    }
   };
 
   const handlePasswordChange = (e) => {
@@ -29,7 +56,6 @@ function Profil({ user, onLogout, onNavigate, onProfileUpdate }) {
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validasi ukuran file (max 1MB)
       if (file.size > 1 * 1024 * 1024) {
         setMessage("❌ Ukuran foto maksimal 1MB");
         return;
@@ -41,6 +67,12 @@ function Profil({ user, onLogout, onNavigate, onProfileUpdate }) {
 
   const updateProfile = async (e) => {
     e.preventDefault();
+    
+    if (!validateProfile()) {
+      setMessage("⚠️ Periksa kembali input yang berwarna merah!");
+      return;
+    }
+    
     setIsLoading(true);
     try {
       const response = await API.put("/user/profile", {
@@ -51,14 +83,13 @@ function Profil({ user, onLogout, onNavigate, onProfileUpdate }) {
       });
 
       if (response.data.status === "success") {
-        // Update user melalui props dari App.js
         const updatedUser = {
           ...user,
           nama_lengkap: formData.nama_lengkap,
           email: formData.email,
           no_hp: formData.no_hp,
         };
-        onProfileUpdate(updatedUser); // ← panggil fungsi dari parent
+        onProfileUpdate(updatedUser);
 
         setMessage("✅ Profil berhasil diupdate");
         setTimeout(() => setMessage(""), 3000);
@@ -85,7 +116,7 @@ function Profil({ user, onLogout, onNavigate, onProfileUpdate }) {
     setIsLoading(true);
     try {
       const response = await API.post("/user/change-password", {
-        user_id: user.id_user, // ← Pastikan ini ada
+        user_id: user.id_user,
         old_password: passwordData.old_password,
         new_password: passwordData.new_password,
       });
@@ -232,34 +263,52 @@ function Profil({ user, onLogout, onNavigate, onProfileUpdate }) {
                     <label className="form-label">Nama Lengkap</label>
                     <input
                       type="text"
-                      className="form-control"
+                      className={`form-control ${formErrors.nama_lengkap ? "border-danger" : ""}`}
                       name="nama_lengkap"
                       value={formData.nama_lengkap}
                       onChange={handleProfileChange}
                       required
                     />
+                    {formErrors.nama_lengkap ? (
+                      <small className="text-danger">❌ {formErrors.nama_lengkap}</small>
+                    ) : (
+                      <small className="text-muted">✍️ Nama lengkap sesuai identitas</small>
+                    )}
                   </div>
                   <div className="mb-3">
                     <label className="form-label">Email</label>
                     <input
                       type="email"
-                      className="form-control"
+                      className={`form-control ${formErrors.email ? "border-danger" : ""}`}
                       name="email"
                       value={formData.email}
                       onChange={handleProfileChange}
                       required
                     />
+                    {formErrors.email ? (
+                      <small className="text-danger">❌ {formErrors.email}</small>
+                    ) : (
+                      <small className="text-muted">✍️ Format email valid. Contoh: nama@domain.com</small>
+                    )}
                   </div>
                   <div className="mb-3">
                     <label className="form-label">No. Handphone</label>
                     <input
-                      type="tel"
-                      className="form-control"
+                      type="text"
+                      className={`form-control ${formErrors.no_hp ? "border-danger" : ""}`}
                       name="no_hp"
                       value={formData.no_hp}
                       onChange={handleProfileChange}
-                      placeholder="Contoh: 081234567890"
+                      placeholder="08123456789"
+                      maxLength="13"
+                      inputMode="numeric"
+                      autoComplete="off"
                     />
+                    {formErrors.no_hp ? (
+                      <small className="text-danger">❌ {formErrors.no_hp}</small>
+                    ) : (
+                      <small className="text-muted">✍️ Hanya angka, 10-13 digit. Contoh: 08123456789</small>
+                    )}
                   </div>
                   <button
                     type="submit"

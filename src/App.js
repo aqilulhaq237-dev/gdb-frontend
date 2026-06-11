@@ -14,6 +14,7 @@ import Profil from './components/Profil';
 import RiwayatPelaksanaan from './components/RiwayatPelaksanaan';
 import LihatLaporan from './components/LihatLaporan';
 import KelolaPengguna from './components/KelolaPengguna';
+import KelolaKategori from './components/KelolaKategori';
 import MonitorLog from './components/MonitorLog';
 
 function App() {
@@ -59,6 +60,7 @@ function App() {
     'riwayat': <RiwayatPelaksanaan user={user} onLogout={handleLogout} onNavigate={setCurrentPage} />,
     'lihat-laporan': <LihatLaporan user={user} onLogout={handleLogout} onNavigate={setCurrentPage} />,
     'kelola-user': <KelolaPengguna user={user} onLogout={handleLogout} onNavigate={setCurrentPage} />,
+    'kelola-kategori': <KelolaKategori user={user} onLogout={handleLogout} onNavigate={setCurrentPage} />,
     'cetak-laporan': <LihatLaporan user={user} onLogout={handleLogout} onNavigate={setCurrentPage} />,
     'monitor-log': <MonitorLog user={user} onLogout={handleLogout} onNavigate={setCurrentPage} />,
   };

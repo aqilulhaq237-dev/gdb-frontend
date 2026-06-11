@@ -23,115 +23,60 @@ function Dashboard({ user, onLogout, onNavigate }) {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      setError("");
 
-      const token = localStorage.getItem("token");
-      if (!token) {
-        onNavigate("login");
-        return;
-      }
-
-      const headers = { Authorization: `Bearer ${token}` };
-
-      const programRes = await API.get("/program-kerja", { headers });
+      // Program
+      const programRes = await API.get("/program-kerja");
       const allPrograms = programRes.data.status === "success" ? programRes.data.data : [];
+      const programAktif = allPrograms.filter((p) => p.status_program === "Berjalan" || p.status_program === "Aktif").length;
+      const programSelesai = allPrograms.filter((p) => p.status_program === "Selesai").length;
 
-      const programAktif = allPrograms.filter(
-        (p) => p.status_program === "Berjalan" || p.status_program === "Aktif"
-      ).length;
-      const programSelesai = allPrograms.filter(
-        (p) => p.status_program === "Selesai"
-      ).length;
-
-      const transRes = await API.get("/transaksi", { headers });
+      // Transaksi
+      const transRes = await API.get("/transaksi");
       const allTransaksi = transRes.data.status === "success" ? transRes.data.data : [];
-
-      let totalMasuk = 0;
-      let totalKeluar = 0;
-
+      let totalMasuk = 0, totalKeluar = 0;
       allTransaksi.forEach((t) => {
         if (t.status === "Valid" || t.status_validasi === "Valid" || t.status === "Selesai") {
-          if (t.jenis === "Masuk") {
-            totalMasuk += parseFloat(t.nominal || 0);
-          } else if (t.jenis === "Keluar") {
-            totalKeluar += parseFloat(t.nominal || 0);
-          }
+          if (t.jenis === "Masuk") totalMasuk += parseFloat(t.nominal || 0);
+          else if (t.jenis === "Keluar") totalKeluar += parseFloat(t.nominal || 0);
         }
       });
-
-      const sisaSaldo = totalMasuk - totalKeluar;
 
       setStats({
         totalKasMasuk: totalMasuk,
         totalKasKeluar: totalKeluar,
-        sisaSaldo: sisaSaldo,
+        sisaSaldo: totalMasuk - totalKeluar,
         totalProgram: allPrograms.length,
         programAktif: programAktif,
         programSelesai: programSelesai,
       });
 
-      if (user.role === "Ketua") {
-        try {
-          const pengajuanRes = await API.get("/pengajuan/menunggu", { headers });
-          if (pengajuanRes.data.status === "success") {
-            setPendingApproval(pengajuanRes.data.data.length);
-          }
-        } catch (err) {
-          console.error("Gagal fetch pengajuan:", err);
-        }
-      }
+      const recent = allTransaksi.sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal)).slice(0, 5);
+      setRecentTransactions(recent);
 
-      if (user.role === "Admin") {
-        try {
-          const usersRes = await API.get("/users", { headers });
-          if (usersRes.data.status === "success") {
-            setUsers(usersRes.data.data);
-          }
-        } catch (err) {
-          console.error("Gagal fetch users:", err);
-        }
-      }
-
-      const recentTrans = allTransaksi
-        .sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal))
-        .slice(0, 5);
-      setRecentTransactions(recentTrans);
     } catch (err) {
-      console.error("Error:", err);
-      setError("Gagal memuat data dashboard.");
+      setError("Gagal memuat data.");
     } finally {
       setLoading(false);
     }
   };
 
-  const formatRupiah = (angka) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(angka || 0);
-  };
+  useEffect(() => {
+    if (user.role === "Admin") {
+      API.get("/users")
+        .then(res => { if (res.data.status === "success") setUsers(res.data.data); })
+        .catch(err => console.error(err));
+    }
+    if (user.role === "Ketua") {
+      API.get("/pengajuan/menunggu")
+        .then(res => { if (res.data.status === "success") setPendingApproval(res.data.data.length); })
+        .catch(err => console.error(err));
+    }
+  }, [user.role]);
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "-";
-    return new Date(dateString).toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  };
+  const formatRupiah = (angka) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(angka || 0);
+  const formatDate = (d) => d ? new Date(d).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "-";
 
-  if (loading) {
-    return (
-      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "60vh" }}>
-        <div className="text-center">
-          <div className="spinner-border text-primary" />
-          <p className="mt-3 text-muted">Memuat data dashboard...</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <div className="text-center py-5"><div className="spinner-border text-primary" /><p>Memuat...</p></div>;
 
   return (
     <div className="px-3 px-md-4 py-3 w-100">
@@ -147,62 +92,11 @@ function Dashboard({ user, onLogout, onNavigate }) {
       {error && <div className="alert alert-danger py-2 mb-3">{error}</div>}
 
       <div className="row g-2 mb-4">
-        <div className="col-6 col-md-3">
-          <div className="card bg-success text-white h-100 shadow-sm">
-            <div className="card-body text-center py-3">
-              <div className="mb-2">💰</div>
-              <small className="d-block">Total Kas Masuk</small>
-              <h5 className="mb-0 mt-1">{formatRupiah(stats.totalKasMasuk)}</h5>
-              <small className="d-block mt-1 opacity-75">Semua Program</small>
-            </div>
-          </div>
-        </div>
-
-        <div className="col-6 col-md-3">
-          <div className="card bg-danger text-white h-100 shadow-sm">
-            <div className="card-body text-center py-3">
-              <div className="mb-2">📤</div>
-              <small className="d-block">Total Kas Keluar</small>
-              <h5 className="mb-0 mt-1">{formatRupiah(stats.totalKasKeluar)}</h5>
-              <small className="d-block mt-1 opacity-75">Semua Program</small>
-            </div>
-          </div>
-        </div>
-
-        <div className="col-6 col-md-3">
-          <div className={`card h-100 shadow-sm ${stats.sisaSaldo >= 0 ? "bg-info" : "bg-warning"} text-white`}>
-            <div className="card-body text-center py-3">
-              <div className="mb-2">💳</div>
-              <small className="d-block">Sisa Saldo</small>
-              <h5 className="mb-0 mt-1">{formatRupiah(stats.sisaSaldo)}</h5>
-              <small className="d-block mt-1 opacity-75">Semua Program</small>
-            </div>
-          </div>
-        </div>
-
-        <div className="col-6 col-md-3">
-          <div className="card bg-primary text-white h-100 shadow-sm">
-            <div className="card-body text-center py-3">
-              <div className="mb-2">📋</div>
-              <small className="d-block">Program Aktif</small>
-              <h5 className="mb-0 mt-1">{stats.programAktif} / {stats.totalProgram}</h5>
-              <small className="d-block mt-1 opacity-75">✅ {stats.programSelesai} Selesai</small>
-            </div>
-          </div>
-        </div>
-
-        {user.role === "Ketua" && (
-          <div className="col-6 col-md">
-            <div className="card bg-warning text-dark h-100 shadow-sm" style={{ cursor: "pointer" }} onClick={() => onNavigate("konfirmasi-transaksi")}>
-              <div className="card-body text-center py-3">
-                <div className="mb-2">🔔</div>
-                <small className="d-block">Menunggu Approval</small>
-                <h5 className="mb-0 mt-1">{pendingApproval > 0 ? pendingApproval : "0"}</h5>
-                {pendingApproval > 0 && <small className="d-block mt-1">Klik untuk review →</small>}
-              </div>
-            </div>
-          </div>
-        )}
+        <div className="col-6 col-md-3"><div className="card bg-success text-white h-100 shadow-sm"><div className="card-body text-center py-3"><div className="mb-2">💰</div><small>Total Kas Masuk</small><h5 className="mb-0 mt-1">{formatRupiah(stats.totalKasMasuk)}</h5></div></div></div>
+        <div className="col-6 col-md-3"><div className="card bg-danger text-white h-100 shadow-sm"><div className="card-body text-center py-3"><div className="mb-2">📤</div><small>Total Kas Keluar</small><h5 className="mb-0 mt-1">{formatRupiah(stats.totalKasKeluar)}</h5></div></div></div>
+        <div className="col-6 col-md-3"><div className={`card h-100 shadow-sm ${stats.sisaSaldo >= 0 ? "bg-info" : "bg-warning"} text-white`}><div className="card-body text-center py-3"><div className="mb-2">💳</div><small>Sisa Saldo</small><h5 className="mb-0 mt-1">{formatRupiah(stats.sisaSaldo)}</h5></div></div></div>
+        <div className="col-6 col-md-3"><div className="card bg-primary text-white h-100 shadow-sm"><div className="card-body text-center py-3"><div className="mb-2">📋</div><small>Program Aktif</small><h5 className="mb-0 mt-1">{stats.programAktif} / {stats.totalProgram}</h5><small className="opacity-75">✅ {stats.programSelesai} Selesai</small></div></div></div>
+        {user.role === "Ketua" && <div className="col-6 col-md"><div className="card bg-warning text-dark h-100 shadow-sm" style={{cursor:"pointer"}} onClick={() => onNavigate("konfirmasi-transaksi")}><div className="card-body text-center py-3"><div className="mb-2">🔔</div><small>Menunggu Approval</small><h5 className="mb-0 mt-1">{pendingApproval}</h5></div></div></div>}
       </div>
 
       {user.role === "Admin" && (
@@ -215,28 +109,14 @@ function Dashboard({ user, onLogout, onNavigate }) {
             {users.length === 0 ? (
               <div className="text-center py-4 text-muted">Belum ada pengguna</div>
             ) : (
-              <div className="table-responsive">
-                <table className="table table-bordered table-hover align-middle mb-0 small">
-                  <thead className="table-light text-center">
-                    <tr>
-                      <th>Username</th>
-                      <th>Nama Lengkap</th>
-                      <th>Role</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.map((u) => (
-                      <tr key={u.id_user}>
-                        <td><strong>{u.username}</strong></td>
-                        <td>{u.nama_lengkap}</td>
-                        <td><span className="badge bg-info">{u.role}</span></td>
-                        <td className="text-center"><span className="badge bg-success">🟢 Aktif</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <table className="table table-bordered table-hover align-middle mb-0 small">
+                <thead className="table-light text-center"><tr><th>Username</th><th>Nama Lengkap</th><th>Role</th><th>Status</th></tr></thead>
+                <tbody>
+                  {users.map((u) => (
+                    <tr key={u.id_user}><td><strong>{u.username}</strong></td><td>{u.nama_lengkap}</td><td><span className="badge bg-info">{u.role}</span></td><td className="text-center"><span className="badge bg-success">🟢 Aktif</span></td></tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </div>
         </div>
@@ -252,38 +132,14 @@ function Dashboard({ user, onLogout, onNavigate }) {
             {recentTransactions.length === 0 ? (
               <div className="text-center py-4 text-muted">Belum ada transaksi</div>
             ) : (
-              <div className="table-responsive">
-                <table className="table table-bordered table-hover align-middle mb-0 small">
-                  <thead className="table-light text-center">
-                    <tr>
-                      <th>Tanggal</th>
-                      <th>Program</th>
-                      <th>Jenis</th>
-                      <th>Nominal</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentTransactions.map((t, index) => (
-                      <tr key={index}>
-                        <td className="text-center">{formatDate(t.tanggal || t.created_at)}</td>
-                        <td>{t.nama_program || "-"}</td>
-                        <td className="text-center">
-                          <span className={`badge ${t.jenis === "Masuk" ? "bg-success" : "bg-danger"}`}>{t.jenis}</span>
-                        </td>
-                        <td className="text-end">
-                          <span className={t.jenis === "Masuk" ? "text-success" : "text-danger"}>{formatRupiah(t.nominal)}</span>
-                        </td>
-                        <td className="text-center">
-                          <span className={`badge ${t.status === "Valid" || t.status_validasi === "Valid" ? "bg-success" : t.status === "Pending" ? "bg-warning text-dark" : "bg-danger"}`}>
-                            {t.status === "Valid" || t.status_validasi === "Valid" ? "✅ Valid" : t.status === "Pending" ? "⏳ Pending" : "❌ Tidak Valid"}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <table className="table table-bordered table-hover align-middle mb-0 small">
+                <thead className="table-light text-center"><tr><th>Tanggal</th><th>Program</th><th>Jenis</th><th>Nominal</th><th>Status</th></tr></thead>
+                <tbody>
+                  {recentTransactions.map((t, i) => (
+                    <tr key={i}><td className="text-center">{formatDate(t.tanggal)}</td><td>{t.nama_program || "-"}</td><td className="text-center"><span className={`badge ${t.jenis === "Masuk" ? "bg-success" : "bg-danger"}`}>{t.jenis}</span></td><td className="text-end">{formatRupiah(t.nominal)}</td><td className="text-center"><span className={`badge ${t.status === "Valid" || t.status_validasi === "Valid" ? "bg-success" : "bg-warning text-dark"}`}>{t.status === "Valid" || t.status_validasi === "Valid" ? "✅ Valid" : "⏳ Pending"}</span></td></tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </div>
         </div>

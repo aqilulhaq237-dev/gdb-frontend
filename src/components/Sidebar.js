@@ -18,6 +18,7 @@ function Sidebar({
   const adminMenu = [
     { id: "dashboard", name: "Dashboard", icon: "🏠" },
     { id: "kelola-user", name: "Kelola Pengguna", icon: "👥" },
+    { id: "kelola-kategori", name: "Kelola Kategori Program", icon: "📂" },
     { id: "periode-aktif", name: "Kelola Periode Aktif", icon: "📅" },
     { id: "kelola-biaya", name: "Kelola Daftar Biaya", icon: "💰" },
     { id: "riwayat", name: "Riwayat Pelaksanaan", icon: "📜" },
