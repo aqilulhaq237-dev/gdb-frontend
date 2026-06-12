@@ -219,7 +219,7 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
     });
     setDisplayNominal(formatNominal(harga));
   };
-  
+
   const formatRupiah = (angka) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -227,13 +227,6 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(angka || 0);
-  };
-
-  const cleanKeterangan = (keterangan) => {
-    if (!keterangan) return '-';
-    let cleaned = keterangan.replace(/\[RAB:\d+\]\s*/g, "");
-    cleaned = cleaned.replace(/\[(Saldo|Sponsorship)\]\s*/g, "");
-    return cleaned.trim() || '-';
   };
 
   const cleanKeterangan = (keterangan) => {
@@ -677,7 +670,6 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
                           </span>
                         </td>
                         <td className="text-end">{formatRupiah(t.nominal)}</td>
-                        <td>{cleanKeterangan(item.keterangan)}</td>
                         <td className="text-center">
                           {t.bukti_file ? (
                             <a
