@@ -7,8 +7,6 @@ const API = axios.create({
   }
 });
 
-// ==================== INTERCEPTOR: OTOMATIS TAMBAH ID_PENGGUNA ====================
-
 API.interceptors.request.use((config) => {
   const userData = localStorage.getItem('user');
   
@@ -16,7 +14,6 @@ API.interceptors.request.use((config) => {
     try {
       const user = JSON.parse(userData);
       
-      // Hanya untuk metode POST & PUT
       if (['post', 'put'].includes(config.method.toLowerCase()) && user.id_user) {
         if (config.data instanceof FormData) {
           config.data.append('id_pengguna', user.id_user);
@@ -27,7 +24,11 @@ API.interceptors.request.use((config) => {
         }
       }
       
-      // DELETE: tidak kirim id_pengguna (backend tidak support body di DELETE)
+      // ✅ Kirim id_pengguna via query params untuk DELETE
+      if (config.method.toLowerCase() === 'delete') {
+        if (!config.params) config.params = {};
+        config.params.id_pengguna = user.id_user;
+      }
     } catch (e) {
       console.warn('Gagal parse user dari localStorage:', e);
     }
@@ -39,4 +40,3 @@ API.interceptors.request.use((config) => {
 });
 
 export default API;
-// v2 - fix manifest & delete
