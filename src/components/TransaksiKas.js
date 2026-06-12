@@ -229,13 +229,6 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
     }).format(angka || 0);
   };
 
-  const cleanKeterangan = (keterangan) => {
-    if (!keterangan) return "-";
-    let cleaned = keterangan.replace(/\[RAB:\d+\]\s*/g, "");
-    cleaned = cleaned.replace(/\[(Saldo|Sponsorship)\]\s*/g, "");
-    return cleaned.trim() || "-";
-  };
-
   const today = new Date().toISOString().split("T")[0];
 
   const handleSubmit = async (e) => {
