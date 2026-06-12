@@ -257,7 +257,7 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
     }
 
     // ✅ Validasi: Pengeluaran harus pilih RAB (jika RAB tersedia)
-    if (formData.jenis === "Keluar" && rabList.length > 0 && !selectedRAB) {
+    if (formData.jenis === "Keluar" && !selectedRAB) {
       swalWarning(
         "Perhatian!",
         "Silakan pilih item dari Daftar Biaya RAB terlebih dahulu!",
