@@ -39,3 +39,4 @@ API.interceptors.request.use((config) => {
 });
 
 export default API;
+// v2 - fix manifest & delete
