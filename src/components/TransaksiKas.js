@@ -131,8 +131,13 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
         keterangan: "",
       });
       setDisplayNominal("");
-      setRabList([]);
       setSelectedRAB(null);
+      // ✅ Fetch RAB jika pilih Keluar dan ada program
+      if (value === "Keluar" && (searchProgram || formData.id_program)) {
+        fetchRAB(searchProgram || formData.id_program);
+      } else {
+        setRabList([]);
+      }
     } else if (name === "nominal") {
       const rawValue = value.replace(/\./g, "").replace(/\D/g, "");
       const numberValue = parseInt(rawValue) || 0;
@@ -327,10 +332,11 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
 
   const openAddModal = () => {
     resetForm();
+    setShowModal(true);
+    // ✅ Fetch RAB setelah modal terbuka
     if (searchProgram) {
       fetchRAB(searchProgram);
     }
-    setShowModal(true);
   };
 
   const openEditModal = (transaksi) => {
@@ -421,7 +427,7 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
         </div>
       )}
 
-      {/* Success/Error Messages */}
+      {/* Error */}
       {error && (
         <div className="alert alert-danger py-2 mb-3 small">{error}</div>
       )}
