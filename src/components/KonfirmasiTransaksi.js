@@ -38,6 +38,14 @@ function KonfirmasiTransaksi({ user, onLogout, onNavigate }) {
     }).format(angka || 0);
   };
 
+  // ✅ Fungsi bersihkan tag dari keterangan
+  const cleanKeterangan = (keterangan) => {
+    if (!keterangan) return '-';
+    let cleaned = keterangan.replace(/\[RAB:\d+\]\s*/g, "");
+    cleaned = cleaned.replace(/\[(Saldo|Sponsorship)\]\s*/g, "");
+    return cleaned.trim() || '-';
+  };
+
   const openSetujui = (item) => {
     setSelectedPengajuan(item);
     setCatatan('');
@@ -139,7 +147,8 @@ function KonfirmasiTransaksi({ user, onLogout, onNavigate }) {
                       </td>
                       <td className="text-end">{formatRupiah(item.nominal)}</td>
                       <td className="text-center">{item.tanggal}</td>
-                      <td>{item.keterangan || '-'}</td>
+                      {/* ✅ Keterangan bersih tanpa tag */}
+                      <td>{cleanKeterangan(item.keterangan)}</td>
                       <td className="text-center">
                         {item.bukti_file ? (
                           <a href={`https://gdb-backend-production-4dd1.up.railway.app/uploads/${item.bukti_file}`} target="_blank" rel="noreferrer" className="small">📎 Lihat</a>
@@ -186,6 +195,8 @@ function KonfirmasiTransaksi({ user, onLogout, onNavigate }) {
                     <tr><td>Jenis</td><td>: {selectedPengajuan?.jenis}</td></tr>
                     <tr><td>Nominal</td><td>: {formatRupiah(selectedPengajuan?.nominal)}</td></tr>
                     <tr><td>Tanggal</td><td>: {selectedPengajuan?.tanggal}</td></tr>
+                    {/* ✅ Keterangan di modal juga bersih */}
+                    <tr><td>Keterangan</td><td>: {cleanKeterangan(selectedPengajuan?.keterangan)}</td></tr>
                   </tbody>
                 </table>
 
