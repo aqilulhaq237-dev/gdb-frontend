@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import API from "../services/api";
-import { swalSukses, swalError } from '../utils/swal';
+import { swalSukses, swalError } from "../utils/swal";
 
 function KelolaRABDinamis({ user, onLogout, onNavigate }) {
   const [rabList, setRabList] = useState([]);
@@ -257,13 +257,16 @@ function KelolaRABDinamis({ user, onLogout, onNavigate }) {
   };
 
   const openEditModal = (rab) => {
+    // ✅ Cari di katalog biaya untuk dapatkan min/max
+    const biayaInfo = katalogBiaya.find((k) => k.nama_biaya === rab.nama_item);
+
     setEditingId(rab.id_rab);
     setFormData({
       id_program: rab.id_program,
-      id_biaya: "",
+      id_biaya: biayaInfo ? biayaInfo.id_biaya : "",
       nama_item: rab.nama_item,
-      biaya_minimal: 0,
-      biaya_maksimal: 0,
+      biaya_minimal: biayaInfo ? parseFloat(biayaInfo.biaya_minimal) : 0,
+      biaya_maksimal: biayaInfo ? parseFloat(biayaInfo.biaya_maksimal) : 0,
       harga_claim: parseFloat(rab.harga_satuan),
       keterangan: rab.keterangan || "",
     });
