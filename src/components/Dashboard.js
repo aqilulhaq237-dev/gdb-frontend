@@ -128,7 +128,7 @@ function Dashboard({ user, onLogout, onNavigate }) {
   const getAktivitasInfo = (aktivitas) => {
     switch (aktivitas) {
       case "Login":
-        return { icon: "🔑", badge: "bg-purple text-white" };
+        return { icon: "🔑", badge: "" };
       case "Logout":
         return { icon: "🚪", badge: "bg-secondary text-white" };
       case "Tambah":
@@ -451,7 +451,17 @@ function Dashboard({ user, onLogout, onNavigate }) {
                           <strong>{log.pengguna || "-"}</strong>
                         </td>
                         <td className="text-center">
-                          <span className={`badge ${info.badge} small`}>
+                          <span
+                            className="badge small"
+                            style={
+                              log.aktivitas === "Login"
+                                ? {
+                                    backgroundColor: "#6A1B9A",
+                                    color: "#FFFFFF",
+                                  }
+                                : {}
+                            }
+                          >
                             {info.icon} {log.aktivitas}
                           </span>
                         </td>

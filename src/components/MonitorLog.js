@@ -1,16 +1,16 @@
-import React, { useEffect, useState } from 'react';
-import API from '../services/api';
+import React, { useEffect, useState } from "react";
+import API from "../services/api";
 
 function MonitorLog({ user, onLogout, onNavigate }) {
   const [allLogs, setAllLogs] = useState([]); // ✅ Simpan semua data
-  const [logs, setLogs] = useState([]);       // ✅ Data yang ditampilkan
+  const [logs, setLogs] = useState([]); // ✅ Data yang ditampilkan
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState({
-    start_date: '',
-    end_date: ''
+    start_date: "",
+    end_date: "",
   });
-  const [message, setMessage] = useState('');
-  
+  const [message, setMessage] = useState("");
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -19,8 +19,8 @@ function MonitorLog({ user, onLogout, onNavigate }) {
 
   // Cek akses: hanya Ketua & Admin
   useEffect(() => {
-    if (user.role !== 'Ketua' && user.role !== 'Admin') {
-      onNavigate('dashboard');
+    if (user.role !== "Ketua" && user.role !== "Admin") {
+      onNavigate("dashboard");
     }
   }, [user.role]);
 
@@ -31,24 +31,24 @@ function MonitorLog({ user, onLogout, onNavigate }) {
   // ✅ Fetch SEMUA data log (tanpa filter)
   const fetchAllLogs = async () => {
     setLoading(true);
-    setMessage('');
-    
+    setMessage("");
+
     try {
       // Fetch semua data (pakai limit besar)
-      const response = await API.get('/logs?limit=1000');
-      
-      if (response.data.status === 'success') {
+      const response = await API.get("/logs?limit=1000");
+
+      if (response.data.status === "success") {
         const data = response.data.data || [];
         setAllLogs(data);
-        
+
         // Terapkan filter + pagination
         applyFiltersAndPagination(data, 1, filter);
       } else {
-        setMessage('❌ Gagal mengambil data log');
+        setMessage("❌ Gagal mengambil data log");
       }
     } catch (error) {
-      console.error('Gagal mengambil data log:', error);
-      setMessage('❌ Gagal mengambil data log');
+      console.error("Gagal mengambil data log:", error);
+      setMessage("❌ Gagal mengambil data log");
     } finally {
       setLoading(false);
     }
@@ -57,32 +57,32 @@ function MonitorLog({ user, onLogout, onNavigate }) {
   // ✅ Filter + Pagination client-side
   const applyFiltersAndPagination = (data, page, activeFilter) => {
     let filtered = [...data];
-    
+
     // Filter by start_date
     if (activeFilter.start_date) {
       const startDate = new Date(activeFilter.start_date);
       startDate.setHours(0, 0, 0, 0);
-      filtered = filtered.filter(log => {
-        const logDate = new Date(log.waktu.replace(' ', 'T'));
+      filtered = filtered.filter((log) => {
+        const logDate = new Date(log.waktu.replace(" ", "T"));
         return logDate >= startDate;
       });
     }
-    
+
     // Filter by end_date
     if (activeFilter.end_date) {
       const endDate = new Date(activeFilter.end_date);
       endDate.setHours(23, 59, 59, 999);
-      filtered = filtered.filter(log => {
-        const logDate = new Date(log.waktu.replace(' ', 'T'));
+      filtered = filtered.filter((log) => {
+        const logDate = new Date(log.waktu.replace(" ", "T"));
         return logDate <= endDate;
       });
     }
-    
+
     // Update total
     setTotalItems(filtered.length);
     setTotalPages(Math.ceil(filtered.length / limit) || 1);
     setCurrentPage(page);
-    
+
     // Paginate
     const start = (page - 1) * limit;
     const end = start + limit;
@@ -95,7 +95,7 @@ function MonitorLog({ user, onLogout, onNavigate }) {
   };
 
   const resetFilter = () => {
-    const emptyFilter = { start_date: '', end_date: '' };
+    const emptyFilter = { start_date: "", end_date: "" };
     setFilter(emptyFilter);
     setCurrentPage(1);
     applyFiltersAndPagination(allLogs, 1, emptyFilter);
@@ -108,35 +108,44 @@ function MonitorLog({ user, onLogout, onNavigate }) {
   const goToPage = (page) => {
     if (page < 1 || page > totalPages) return;
     applyFiltersAndPagination(allLogs, page, filter);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const formatDateTime = (datetime) => {
-    if (!datetime) return '-';
-    return new Date(datetime.replace(' ', 'T')).toLocaleString('id-ID', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    if (!datetime) return "-";
+    return new Date(datetime.replace(" ", "T")).toLocaleString("id-ID", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
   const getAktivitasInfo = (aktivitas) => {
     switch (aktivitas) {
-      case 'Login': return { icon: '🔑', badge: 'bg-purple text-white' };
-      case 'Logout': return { icon: '🚪', badge: 'bg-secondary text-white' };
-      case 'Tambah': return { icon: '➕', badge: 'bg-primary text-white' };
-      case 'Ubah': return { icon: '✏️', badge: 'bg-warning text-dark' };
-      case 'Hapus': return { icon: '🗑️', badge: 'bg-danger text-white' };
-      case 'Transaksi': return { icon: '💰', badge: 'bg-info text-dark' };
-      case 'Konfirmasi': return { icon: '✅', badge: 'bg-success text-white' };
-      case 'Tolak': return { icon: '❌', badge: 'bg-danger text-white' };
-      default: return { icon: '📋', badge: 'bg-light text-dark' };
+      case "Login":
+        return { icon: "🔑", badge: "bg-purple text-white" };
+      case "Logout":
+        return { icon: "🚪", badge: "bg-secondary text-white" };
+      case "Tambah":
+        return { icon: "➕", badge: "bg-primary text-white" };
+      case "Ubah":
+        return { icon: "✏️", badge: "bg-warning text-dark" };
+      case "Hapus":
+        return { icon: "🗑️", badge: "bg-danger text-white" };
+      case "Transaksi":
+        return { icon: "💰", badge: "bg-info text-dark" };
+      case "Konfirmasi":
+        return { icon: "✅", badge: "bg-success text-white" };
+      case "Tolak":
+        return { icon: "❌", badge: "bg-danger text-white" };
+      default:
+        return { icon: "📋", badge: "bg-light text-dark" };
     }
   };
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toISOString().split("T")[0];
 
   const renderPagination = () => {
     if (totalPages <= 1) return null;
@@ -157,15 +166,20 @@ function MonitorLog({ user, onLogout, onNavigate }) {
     return (
       <nav className="d-flex justify-content-center mt-3">
         <ul className="pagination pagination-sm mb-0 flex-wrap">
-          <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
-            <button className="page-link" onClick={() => goToPage(currentPage - 1)}>
+          <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+            <button
+              className="page-link"
+              onClick={() => goToPage(currentPage - 1)}
+            >
               ◀️ Sebelumnya
             </button>
           </li>
           {startPage > 1 && (
             <>
               <li className="page-item">
-                <button className="page-link" onClick={() => goToPage(1)}>1</button>
+                <button className="page-link" onClick={() => goToPage(1)}>
+                  1
+                </button>
               </li>
               {startPage > 2 && (
                 <li className="page-item disabled">
@@ -174,8 +188,11 @@ function MonitorLog({ user, onLogout, onNavigate }) {
               )}
             </>
           )}
-          {pages.map(page => (
-            <li key={page} className={`page-item ${page === currentPage ? 'active' : ''}`}>
+          {pages.map((page) => (
+            <li
+              key={page}
+              className={`page-item ${page === currentPage ? "active" : ""}`}
+            >
               <button className="page-link" onClick={() => goToPage(page)}>
                 {page}
               </button>
@@ -189,14 +206,22 @@ function MonitorLog({ user, onLogout, onNavigate }) {
                 </li>
               )}
               <li className="page-item">
-                <button className="page-link" onClick={() => goToPage(totalPages)}>
+                <button
+                  className="page-link"
+                  onClick={() => goToPage(totalPages)}
+                >
                   {totalPages}
                 </button>
               </li>
             </>
           )}
-          <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
-            <button className="page-link" onClick={() => goToPage(currentPage + 1)}>
+          <li
+            className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}
+          >
+            <button
+              className="page-link"
+              onClick={() => goToPage(currentPage + 1)}
+            >
               Selanjutnya ▶️
             </button>
           </li>
@@ -207,7 +232,10 @@ function MonitorLog({ user, onLogout, onNavigate }) {
 
   if (loading && allLogs.length === 0) {
     return (
-      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
+      <div
+        className="d-flex justify-content-center align-items-center"
+        style={{ minHeight: "60vh" }}
+      >
         <div className="text-center">
           <div className="spinner-border text-primary" />
           <p className="mt-3 text-muted">Memuat data log...</p>
@@ -228,7 +256,7 @@ function MonitorLog({ user, onLogout, onNavigate }) {
           <span className="badge bg-secondary small">{user.role}</span>
           <button
             className="btn btn-outline-secondary btn-sm"
-            onClick={() => onNavigate('dashboard')}
+            onClick={() => onNavigate("dashboard")}
           >
             📊 Dashboard
           </button>
@@ -239,7 +267,9 @@ function MonitorLog({ user, onLogout, onNavigate }) {
       </div>
 
       {message && (
-        <div className={`alert ${message.includes('✅') ? 'alert-success' : 'alert-danger'} py-2 mb-3 small`}>
+        <div
+          className={`alert ${message.includes("✅") ? "alert-success" : "alert-danger"} py-2 mb-3 small`}
+        >
           {message}
         </div>
       )}
@@ -252,7 +282,9 @@ function MonitorLog({ user, onLogout, onNavigate }) {
         <div className="card-body py-3">
           <div className="row align-items-end g-3">
             <div className="col-sm-5">
-              <label className="form-label small fw-bold mb-1">📅 Tanggal Mulai</label>
+              <label className="form-label small fw-bold mb-1">
+                📅 Tanggal Mulai
+              </label>
               <input
                 type="date"
                 className="form-control form-control-sm"
@@ -263,7 +295,9 @@ function MonitorLog({ user, onLogout, onNavigate }) {
               />
             </div>
             <div className="col-sm-5">
-              <label className="form-label small fw-bold mb-1">📅 Tanggal Akhir</label>
+              <label className="form-label small fw-bold mb-1">
+                📅 Tanggal Akhir
+              </label>
               <input
                 type="date"
                 className="form-control form-control-sm"
@@ -275,10 +309,16 @@ function MonitorLog({ user, onLogout, onNavigate }) {
               />
             </div>
             <div className="col-sm-2 d-flex gap-2">
-              <button className="btn btn-primary btn-sm w-100" onClick={applyFilter}>
+              <button
+                className="btn btn-primary btn-sm w-100"
+                onClick={applyFilter}
+              >
                 🔍 Filter
               </button>
-              <button className="btn btn-outline-secondary btn-sm w-100" onClick={resetFilter}>
+              <button
+                className="btn btn-outline-secondary btn-sm w-100"
+                onClick={resetFilter}
+              >
                 🔄 Reset
               </button>
             </div>
@@ -292,7 +332,8 @@ function MonitorLog({ user, onLogout, onNavigate }) {
           <h5 className="mb-0 h6">📋 Riwayat Aktivitas</h5>
           {totalItems > 0 && (
             <small className="opacity-75">
-              Menampilkan {(currentPage - 1) * limit + 1}-{Math.min(currentPage * limit, totalItems)} dari {totalItems}
+              Menampilkan {(currentPage - 1) * limit + 1}-
+              {Math.min(currentPage * limit, totalItems)} dari {totalItems}
             </small>
           )}
         </div>
@@ -300,11 +341,13 @@ function MonitorLog({ user, onLogout, onNavigate }) {
           {logs.length === 0 ? (
             <div className="text-center py-5">
               <span className="fs-1">📭</span>
-              <p className="text-muted mt-2 mb-0">Belum ada aktivitas yang tercatat</p>
+              <p className="text-muted mt-2 mb-0">
+                Belum ada aktivitas yang tercatat
+              </p>
               <small className="text-muted">
                 {filter.start_date || filter.end_date
-                  ? 'Tidak ada aktivitas di rentang tanggal tersebut'
-                  : 'Aktivitas akan muncul di sini'}
+                  ? "Tidak ada aktivitas di rentang tanggal tersebut"
+                  : "Aktivitas akan muncul di sini"}
               </small>
             </div>
           ) : (
@@ -314,11 +357,11 @@ function MonitorLog({ user, onLogout, onNavigate }) {
                 <table className="table table-bordered table-hover align-middle mb-0 w-100 small">
                   <thead className="table-light text-center">
                     <tr>
-                      <th style={{ width: '5%' }}>#</th>
-                      <th style={{ width: '20%' }}>Waktu</th>
-                      <th style={{ width: '15%' }}>Pengguna</th>
-                      <th style={{ width: '15%' }}>Aktivitas</th>
-                      <th style={{ width: '45%' }}>Deskripsi</th>
+                      <th style={{ width: "5%" }}>#</th>
+                      <th style={{ width: "20%" }}>Waktu</th>
+                      <th style={{ width: "15%" }}>Pengguna</th>
+                      <th style={{ width: "15%" }}>Aktivitas</th>
+                      <th style={{ width: "45%" }}>Deskripsi</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -333,14 +376,26 @@ function MonitorLog({ user, onLogout, onNavigate }) {
                             {formatDateTime(log.waktu)}
                           </td>
                           <td>
-                            <strong className="small">{log.pengguna || '-'}</strong>
+                            <strong className="small">
+                              {log.pengguna || "-"}
+                            </strong>
                           </td>
                           <td className="text-center">
-                            <span className={`badge ${info.badge} small`}>
+                            <span
+                              className="badge small"
+                              style={
+                                log.aktivitas === "Login"
+                                  ? {
+                                      backgroundColor: "#6A1B9A",
+                                      color: "#FFFFFF",
+                                    }
+                                  : {}
+                              }
+                            >
                               {info.icon} {log.aktivitas}
                             </span>
                           </td>
-                          <td className="small">{log.deskripsi || '-'}</td>
+                          <td className="small">{log.deskripsi || "-"}</td>
                         </tr>
                       );
                     })}
@@ -358,14 +413,23 @@ function MonitorLog({ user, onLogout, onNavigate }) {
                       className="card mb-2 shadow-sm border-start border-3"
                       style={{
                         borderLeftColor:
-                          log.aktivitas === 'Login' ? '#6f42c1' :
-                          log.aktivitas === 'Logout' ? '#6c757d' :
-                          log.aktivitas === 'Tambah' ? '#0d6efd' :
-                          log.aktivitas === 'Ubah' ? '#ffc107' :
-                          log.aktivitas === 'Hapus' ? '#dc3545' :
-                          log.aktivitas === 'Transaksi' ? '#0dcaf0' :
-                          log.aktivitas === 'Konfirmasi' ? '#198754' :
-                          log.aktivitas === 'Tolak' ? '#dc3545' : '#dee2e6'
+                          log.aktivitas === "Login"
+                            ? "#6f42c1"
+                            : log.aktivitas === "Logout"
+                              ? "#6c757d"
+                              : log.aktivitas === "Tambah"
+                                ? "#0d6efd"
+                                : log.aktivitas === "Ubah"
+                                  ? "#ffc107"
+                                  : log.aktivitas === "Hapus"
+                                    ? "#dc3545"
+                                    : log.aktivitas === "Transaksi"
+                                      ? "#0dcaf0"
+                                      : log.aktivitas === "Konfirmasi"
+                                        ? "#198754"
+                                        : log.aktivitas === "Tolak"
+                                          ? "#dc3545"
+                                          : "#dee2e6",
                       }}
                     >
                       <div className="card-body py-2 px-3">
@@ -378,14 +442,12 @@ function MonitorLog({ user, onLogout, onNavigate }) {
                           </small>
                         </div>
                         <div className="small mb-1">
-                          <strong>{log.pengguna || '-'}</strong>
+                          <strong>{log.pengguna || "-"}</strong>
                         </div>
                         <div className="small text-muted mb-1">
                           🕐 {formatDateTime(log.waktu)}
                         </div>
-                        <div className="small">
-                          {log.deskripsi || '-'}
-                        </div>
+                        <div className="small">{log.deskripsi || "-"}</div>
                       </div>
                     </div>
                   );
