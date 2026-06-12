@@ -9,8 +9,10 @@ function KelolaPeriodeAktif({ user, onLogout, onNavigate }) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
+  const [dropdownStyle, setDropdownStyle] = useState({});
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
+  const arrowRef = useRef(null);
 
   const currentYear = new Date().getFullYear();
 
@@ -21,7 +23,7 @@ function KelolaPeriodeAktif({ user, onLogout, onNavigate }) {
     `${currentYear + 1}`,
     `${currentYear}/${currentYear + 1}`,
     `${currentYear}`,
-    `${currentYear - 1}/${currentYear}`,  
+    `${currentYear - 1}/${currentYear}`,
     `${currentYear - 1}`,
     `${currentYear - 2}/${currentYear - 1}`,
     `${currentYear - 2}`,
@@ -46,6 +48,37 @@ function KelolaPeriodeAktif({ user, onLogout, onNavigate }) {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // ✅ Hitung posisi dropdown di kanan bawah ▼
+  const updateDropdownPosition = () => {
+    if (arrowRef.current) {
+      const rect = arrowRef.current.getBoundingClientRect();
+      setDropdownStyle({
+        position: "fixed",
+        zIndex: 9999,
+        maxHeight: "200px",
+        overflowY: "auto",
+        width: "220px",
+        top: `${rect.bottom + 4}px`,
+        left: `${rect.right - 220}px`,
+        whiteSpace: "nowrap",
+      });
+    }
+  };
+
+  const handleInputFocus = () => {
+    updateDropdownPosition();
+    setShowDropdown(true);
+  };
+
+  const handleInputChange = (e) => {
+    const value = e.target.value.replace(/\D/g, "").slice(0, 4);
+    setNewTahun(value);
+    if (!showDropdown) {
+      updateDropdownPosition();
+      setShowDropdown(true);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -258,8 +291,8 @@ function KelolaPeriodeAktif({ user, onLogout, onNavigate }) {
           <table className="table table-bordered table-hover align-middle mb-0 w-100">
             <thead className="table-light text-center">
               <tr>
-                <th style={{ width: "12%" }}>Pilih</th>
-                <th style={{ width: "43%" }}>Tahun</th>
+                <th style={{ width: "10%" }}>Pilih</th>
+                <th style={{ width: "45%" }}>Tahun</th>
                 <th style={{ width: "25%" }}>Status</th>
                 <th style={{ width: "20%" }}>Aksi</th>
               </tr>
@@ -330,96 +363,68 @@ function KelolaPeriodeAktif({ user, onLogout, onNavigate }) {
               {/* Baris Input Tambah Tahun */}
               <tr className="table-active">
                 <td></td>
-                <td>
-                  <div className="position-relative" ref={dropdownRef}>
-                    <div className="input-group input-group-sm">
-                      <span className="input-group-text bg-white border-end-0 ps-2 pe-1">
-                        ➕
-                      </span>
-                      <input
-                        ref={inputRef}
-                        type="text"
-                        className="form-control border-start-0 border-end-0"
-                        placeholder="Ketik atau pilih tahun..."
-                        value={newTahun}
-                        onChange={(e) => {
-                          const value = e.target.value.replace(/\D/g, "").slice(0, 4);
-                          setNewTahun(value);
-                          setShowDropdown(true);
-                        }}
-                        onFocus={() => setShowDropdown(true)}
-                        onKeyDown={(e) => {
-                          const allowedKeys = [
-                            "Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab",
-                            "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
-                          ];
-                          if (!allowedKeys.includes(e.key) && !e.ctrlKey && !e.metaKey) {
-                            e.preventDefault();
-                          }
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            handleTambahTahun();
-                          }
-                        }}
-                        maxLength="4"
-                        inputMode="numeric"
-                        autoComplete="off"
-                      />
-                      <button
-                        className="btn btn-outline-secondary px-2"
-                        type="button"
-                        onClick={() => {
-                          setShowDropdown(!showDropdown);
-                          if (!showDropdown) inputRef.current?.focus();
-                        }}
-                      >
-                        ▼
-                      </button>
-                    </div>
-
-                    {showDropdown && (
-                      <ul
-                        className="list-group position-absolute shadow"
-                        style={{
-                          zIndex: 1050,
-                          maxHeight: "180px",
-                          overflowY: "auto",
-                          width: "100%",
-                          top: "100%",
-                          left: 0,
-                          minWidth: "200px",
-                        }}
-                      >
-                        {filteredSuggestions.length > 0 ? (
-                          filteredSuggestions.map((year, i) => (
-                            <li
-                              key={i}
-                              className="list-group-item list-group-item-action py-1 px-3 small"
-                              style={{ cursor: "pointer" }}
-                              onClick={() => handleTambahTahun(year)}
-                            >
-                              {year}
-                            </li>
-                          ))
-                        ) : newTahun.trim() ? (
-                          <li
-                            className="list-group-item list-group-item-action py-1 px-3 text-primary small"
-                            style={{ cursor: "pointer" }}
-                            onClick={() => handleTambahTahun(newTahun.trim())}
-                          >
-                            ➕ Tambah "{newTahun.trim()}" (baru)
-                          </li>
-                        ) : (
-                          <li
-                            className="list-group-item py-1 px-3 text-muted"
-                            style={{ fontSize: "12px" }}
-                          >
-                            Ketik untuk mencari...
-                          </li>
-                        )}
-                      </ul>
-                    )}
-                  </div>
+                <td style={{ position: "relative" }}>
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    className="form-control form-control-sm"
+                    placeholder="➕ Tambah tahun..."
+                    value={newTahun}
+                    onChange={handleInputChange}
+                    onFocus={handleInputFocus}
+                    onClick={() => {
+                      updateDropdownPosition();
+                      setShowDropdown(true);
+                    }}
+                    onKeyDown={(e) => {
+                      const allowedKeys = [
+                        "Backspace",
+                        "Delete",
+                        "ArrowLeft",
+                        "ArrowRight",
+                        "Tab",
+                        "0",
+                        "1",
+                        "2",
+                        "3",
+                        "4",
+                        "5",
+                        "6",
+                        "7",
+                        "8",
+                        "9",
+                      ];
+                      if (
+                        !allowedKeys.includes(e.key) &&
+                        !e.ctrlKey &&
+                        !e.metaKey
+                      ) {
+                        e.preventDefault();
+                      }
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleTambahTahun();
+                      }
+                    }}
+                    maxLength="4"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    style={{ cursor: "pointer", paddingRight: "30px" }}
+                  />
+                  <span
+                    ref={arrowRef}
+                    style={{
+                      position: "absolute",
+                      right: "10px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      pointerEvents: "none",
+                      fontSize: "12px",
+                      color: "#6c757d",
+                    }}
+                  >
+                    ▼
+                  </span>
                 </td>
                 <td></td>
                 <td className="text-center">
@@ -459,6 +464,47 @@ function KelolaPeriodeAktif({ user, onLogout, onNavigate }) {
           </button>
         </div>
       </div>
+
+      {/* ✅ DROPDOWN DI KANAN BAWAH ▼ */}
+      {showDropdown && (
+        <ul
+          ref={dropdownRef}
+          className="list-group shadow"
+          style={dropdownStyle}
+        >
+          {filteredSuggestions.length > 0 ? (
+            filteredSuggestions.map((year, i) => (
+              <li
+                key={i}
+                className="list-group-item list-group-item-action py-2 px-3 small"
+                style={{ cursor: "pointer" }}
+                onClick={() => {
+                  setNewTahun(year);
+                  setShowDropdown(false);
+                  inputRef.current?.focus();
+                }}
+              >
+                {year}
+              </li>
+            ))
+          ) : newTahun.trim() ? (
+            <li
+              className="list-group-item list-group-item-action py-2 px-3 text-primary small"
+              style={{ cursor: "pointer" }}
+              onClick={() => {
+                setShowDropdown(false);
+                inputRef.current?.focus();
+              }}
+            >
+              ➕ Tekan Enter atau klik Tambah untuk "{newTahun.trim()}"
+            </li>
+          ) : (
+            <li className="list-group-item py-2 px-3 text-muted small">
+              Ketik untuk mencari...
+            </li>
+          )}
+        </ul>
+      )}
     </div>
   );
 }

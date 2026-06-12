@@ -1,410 +1,191 @@
-import React, { useState } from "react";
-import API from "../services/api";
+import React, { useEffect, useState } from 'react';
+import API from '../services/api';
+import { swalSukses, swalError } from '../utils/swal';
 
 function Profil({ user, onLogout, onNavigate, onProfileUpdate }) {
-  const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    nama_lengkap: user.nama_lengkap,
-    email: user.email,
-    no_hp: user.no_hp || "",
+    nama_lengkap: '',
+    username: '',
+    email: '',
+    no_hp: '',
+    password: '',
+    password_baru: '',
+    konfirmasi_password: '',
   });
-  const [passwordData, setPasswordData] = useState({
-    old_password: "",
-    new_password: "",
-    confirm_password: "",
-  });
-  const [message, setMessage] = useState("");
-  const [photoPreview, setPhotoPreview] = useState(null);
-  const [photoFile, setPhotoFile] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [formErrors, setFormErrors] = useState({});
+  const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [foto, setFoto] = useState(null);
+  const [previewFoto, setPreviewFoto] = useState('');
 
-  const validateProfile = () => {
-    const errors = {};
-    if (!formData.nama_lengkap.trim()) {
-      errors.nama_lengkap = "Nama lengkap wajib diisi!";
-    }
-    if (!formData.email.trim()) {
-      errors.email = "Email wajib diisi!";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      errors.email = "Format email tidak valid! Contoh: nama@domain.com";
-    }
-    if (formData.no_hp && !/^[0-9]{10,13}$/.test(formData.no_hp)) {
-      errors.no_hp = "No HP hanya angka, 10-13 digit! Contoh: 08123456789";
-    }
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
+  useEffect(() => {
+    setFormData({
+      nama_lengkap: user.nama_lengkap || '',
+      username: user.username || '',
+      email: user.email || '',
+      no_hp: user.no_hp || '',
+      password: '',
+      password_baru: '',
+      konfirmasi_password: '',
+    });
+  }, [user]);
 
-  const handleProfileChange = (e) => {
-    const { name, value } = e.target;
-    if (name === "no_hp") {
-      const cleaned = value.replace(/\D/g, "").slice(0, 13);
-      setFormData({ ...formData, no_hp: cleaned });
-    } else {
-      setFormData({ ...formData, [name]: value });
-    }
-    if (formErrors[name]) {
-      setFormErrors({ ...formErrors, [name]: "" });
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (errors[e.target.name]) {
+      setErrors({ ...errors, [e.target.name]: '' });
     }
   };
 
-  const handlePasswordChange = (e) => {
-    setPasswordData({ ...passwordData, [e.target.name]: e.target.value });
-  };
-
-  const handlePhotoChange = (e) => {
+  const handleFotoChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 1 * 1024 * 1024) {
-        setMessage("❌ Ukuran foto maksimal 1MB");
-        return;
-      }
-      setPhotoFile(file);
-      setPhotoPreview(URL.createObjectURL(file));
+      setFoto(file);
+      setPreviewFoto(URL.createObjectURL(file));
     }
   };
 
-  const updateProfile = async (e) => {
-    e.preventDefault();
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.nama_lengkap.trim()) newErrors.nama_lengkap = 'Nama lengkap wajib diisi';
+    if (!formData.email.trim()) newErrors.email = 'Email wajib diisi';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = 'Format email tidak valid';
+    if (formData.no_hp && !/^[0-9]{10,13}$/.test(formData.no_hp.replace(/[-\s]/g, ''))) newErrors.no_hp = 'Format no HP tidak valid (10-13 digit)';
     
-    if (!validateProfile()) {
-      setMessage("⚠️ Periksa kembali input yang berwarna merah!");
-      return;
+    if (formData.password_baru) {
+      if (!formData.password) newErrors.password = 'Password lama wajib diisi untuk mengubah password';
+      if (formData.password_baru.length < 6) newErrors.password_baru = 'Password minimal 6 karakter';
+      if (formData.password_baru !== formData.konfirmasi_password) newErrors.konfirmasi_password = 'Konfirmasi password tidak cocok';
     }
-    
-    setIsLoading(true);
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    setSaving(true);
     try {
-      const response = await API.put("/user/profile", {
-        user_id: user.id_user,
+      const dataToSend = {
         nama_lengkap: formData.nama_lengkap,
         email: formData.email,
         no_hp: formData.no_hp,
-      });
+      };
 
-      if (response.data.status === "success") {
-        const updatedUser = {
-          ...user,
-          nama_lengkap: formData.nama_lengkap,
-          email: formData.email,
-          no_hp: formData.no_hp,
-        };
-        onProfileUpdate(updatedUser);
-
-        setMessage("✅ Profil berhasil diupdate");
-        setTimeout(() => setMessage(""), 3000);
-        setIsEditing(false);
+      if (formData.password_baru) {
+        dataToSend.password = formData.password_baru;
       }
-    } catch (error) {
-      console.error(error);
-      setMessage("❌ Gagal mengupdate profil");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
-  const updatePassword = async (e) => {
-    e.preventDefault();
-    if (passwordData.new_password !== passwordData.confirm_password) {
-      setMessage("❌ Password baru dan konfirmasi tidak cocok");
-      return;
-    }
-    if (passwordData.new_password.length < 6) {
-      setMessage("❌ Password baru minimal 6 karakter");
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const response = await API.post("/user/change-password", {
-        user_id: user.id_user,
-        old_password: passwordData.old_password,
-        new_password: passwordData.new_password,
-      });
-      if (response.data.status === "success") {
-        setMessage("✅ Password berhasil diubah");
-        setPasswordData({
-          old_password: "",
-          new_password: "",
-          confirm_password: "",
+      await API.put(`/users/${user.id_user}`, dataToSend);
+
+      // Upload foto jika ada
+      if (foto) {
+        const fotoForm = new FormData();
+        fotoForm.append('photo', foto);
+        await API.post(`/users/${user.id_user}/upload-photo`, fotoForm, {
+          headers: { 'Content-Type': 'multipart/form-data' },
         });
-        setTimeout(() => setMessage(""), 3000);
-      } else {
-        setMessage(response.data.message || "❌ Gagal mengubah password");
       }
+
+      const updatedUser = {
+        ...user,
+        nama_lengkap: formData.nama_lengkap,
+        email: formData.email,
+        no_hp: formData.no_hp,
+      };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      if (onProfileUpdate) onProfileUpdate(updatedUser);
+
+      swalSukses('Berhasil!', 'Profil berhasil diupdate!');
     } catch (error) {
-      console.error(error);
-      const errorMsg =
-        error.response?.data?.message || "❌ Gagal mengubah password";
-      setMessage(errorMsg);
+      swalError('Gagal!', error.response?.data?.message || 'Gagal mengupdate profil');
     } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const updatePhoto = async (e) => {
-    e.preventDefault();
-    if (!photoFile) return;
-
-    setIsLoading(true);
-    const formDataFile = new FormData();
-    formDataFile.append("foto", photoFile);
-
-    try {
-      const response = await API.post("/user/upload-photo", formDataFile, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      if (response.data.status === "success") {
-        setMessage("✅ Foto profil berhasil diupdate");
-        setTimeout(() => setMessage(""), 3000);
-      }
-    } catch (error) {
-      setMessage("❌ Gagal mengupload foto");
-    } finally {
-      setIsLoading(false);
+      setSaving(false);
     }
   };
 
   return (
-    <div className="container-fluid">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h1 className="text-primary">Profil Saya</h1>
-        <div className="d-flex align-items-center gap-2">
-          <span className="me-2">
-            Halo, <strong>{user.nama_lengkap}</strong>
-          </span>
-          <span className="badge bg-secondary me-2">{user.role}</span>
-          <button
-            className="btn btn-outline-secondary me-2"
-            onClick={() => onNavigate("dashboard")}
-          >
-            Dashboard
-          </button>
-          <button className="btn btn-danger btn-sm" onClick={onLogout}>
-            Logout
-          </button>
+    <div className="px-3 px-md-4 py-3 w-100">
+      <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+        <h1 className="text-primary h4 mb-0">👤 Profil Saya</h1>
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          <span className="text-nowrap small">Halo, <strong>{user.nama_lengkap}</strong></span>
+          <span className="badge bg-secondary small">{user.role}</span>
+          <button className="btn btn-outline-secondary btn-sm" onClick={() => onNavigate('dashboard')}>📊 Dashboard</button>
+          <button className="btn btn-danger btn-sm" onClick={onLogout}>🚪 Logout</button>
         </div>
       </div>
 
-      {message && (
-        <div
-          className={`alert ${message.includes("✅") ? "alert-success" : "alert-danger"} mb-3`}
-        >
-          {message}
+      <div className="card shadow-sm">
+        <div className="card-header card-header-purple py-2">
+          <h5 className="mb-0 h6">✏️ Edit Profil</h5>
         </div>
-      )}
-
-      <div className="row">
-        {/* Kolom Kiri: Foto Profil */}
-        <div className="col-md-4 mb-4">
-          <div className="card">
-            <div className="card-header bg-info text-white">
-              <h5 className="mb-0">Foto Profil</h5>
-            </div>
-            <div className="card-body text-center">
-              <div className="mb-3">
-                {photoPreview ? (
-                  <img
-                    src={photoPreview}
-                    alt="Preview"
-                    className="rounded-circle border"
-                    style={{
-                      width: "150px",
-                      height: "150px",
-                      objectFit: "cover",
-                    }}
-                  />
-                ) : (
-                  <div
-                    className="rounded-circle bg-secondary d-flex align-items-center justify-content-center mx-auto"
-                    style={{ width: "150px", height: "150px" }}
-                  >
-                    <span className="text-white" style={{ fontSize: "48px" }}>
-                      👤
-                    </span>
-                  </div>
-                )}
+        <div className="card-body py-3">
+          <form onSubmit={handleSubmit}>
+            <div className="row">
+              <div className="col-md-3 text-center mb-3">
+                <div className="mb-2">
+                  {previewFoto ? (
+                    <img src={previewFoto} alt="Preview" className="rounded-circle" style={{ width: '120px', height: '120px', objectFit: 'cover' }} />
+                  ) : (
+                    <div className="rounded-circle bg-light d-inline-flex align-items-center justify-content-center" style={{ width: '120px', height: '120px', fontSize: '3rem' }}>
+                      🧑
+                    </div>
+                  )}
+                </div>
+                <input type="file" className="form-control form-control-sm" accept="image/*" onChange={handleFotoChange} />
+                <small className="text-muted">Max 500KB</small>
               </div>
-              <form onSubmit={updatePhoto}>
-                <input
-                  type="file"
-                  className="form-control mb-2"
-                  accept="image/*"
-                  onChange={handlePhotoChange}
-                />
-                <button
-                  type="submit"
-                  className="btn btn-primary btn-sm w-100"
-                  disabled={!photoFile || isLoading}
-                >
-                  {isLoading ? "Mengupload..." : "Upload Foto"}
-                </button>
-              </form>
-              <small className="text-muted">Format: JPG, PNG. Max 1MB</small>
+              <div className="col-md-9">
+                <div className="mb-3">
+                  <label className="form-label small fw-bold">Nama Lengkap <span className="text-danger">*</span></label>
+                  <input type="text" className={`form-control form-control-sm ${errors.nama_lengkap ? 'border-danger' : ''}`} name="nama_lengkap" value={formData.nama_lengkap} onChange={handleChange} />
+                  {errors.nama_lengkap && <small className="text-danger">{errors.nama_lengkap}</small>}
+                </div>
+                <div className="mb-3">
+                  <label className="form-label small fw-bold">Username</label>
+                  <input type="text" className="form-control form-control-sm bg-light" value={formData.username} disabled />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label small fw-bold">Email <span className="text-danger">*</span></label>
+                  <input type="email" className={`form-control form-control-sm ${errors.email ? 'border-danger' : ''}`} name="email" value={formData.email} onChange={handleChange} />
+                  {errors.email && <small className="text-danger">{errors.email}</small>}
+                </div>
+                <div className="mb-3">
+                  <label className="form-label small fw-bold">No. HP</label>
+                  <input type="text" className={`form-control form-control-sm ${errors.no_hp ? 'border-danger' : ''}`} name="no_hp" value={formData.no_hp} onChange={handleChange} />
+                  {errors.no_hp && <small className="text-danger">{errors.no_hp}</small>}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        {/* Kolom Kanan: Data Diri */}
-        <div className="col-md-8 mb-4">
-          <div className="card">
-            <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-              <h5 className="mb-0">Data Diri</h5>
-              <button
-                className="btn btn-light btn-sm"
-                onClick={() => setIsEditing(!isEditing)}
-              >
-                {isEditing ? "Batal" : "Edit"}
+            <hr />
+            <h6 className="mb-3">🔒 Ubah Password (Opsional)</h6>
+            <div className="row">
+              <div className="col-md-4 mb-3">
+                <label className="form-label small fw-bold">Password Lama</label>
+                <input type="password" className={`form-control form-control-sm ${errors.password ? 'border-danger' : ''}`} name="password" value={formData.password} onChange={handleChange} />
+                {errors.password && <small className="text-danger">{errors.password}</small>}
+              </div>
+              <div className="col-md-4 mb-3">
+                <label className="form-label small fw-bold">Password Baru</label>
+                <input type="password" className={`form-control form-control-sm ${errors.password_baru ? 'border-danger' : ''}`} name="password_baru" value={formData.password_baru} onChange={handleChange} />
+                {errors.password_baru && <small className="text-danger">{errors.password_baru}</small>}
+              </div>
+              <div className="col-md-4 mb-3">
+                <label className="form-label small fw-bold">Konfirmasi Password</label>
+                <input type="password" className={`form-control form-control-sm ${errors.konfirmasi_password ? 'border-danger' : ''}`} name="konfirmasi_password" value={formData.konfirmasi_password} onChange={handleChange} />
+                {errors.konfirmasi_password && <small className="text-danger">{errors.konfirmasi_password}</small>}
+              </div>
+            </div>
+
+            <div className="text-end">
+              <button type="submit" className="btn btn-primary" disabled={saving}>
+                {saving ? '⏳ Menyimpan...' : '💾 Simpan Perubahan'}
               </button>
             </div>
-            <div className="card-body">
-              {isEditing ? (
-                <form onSubmit={updateProfile}>
-                  <div className="mb-3">
-                    <label className="form-label">Nama Lengkap</label>
-                    <input
-                      type="text"
-                      className={`form-control ${formErrors.nama_lengkap ? "border-danger" : ""}`}
-                      name="nama_lengkap"
-                      value={formData.nama_lengkap}
-                      onChange={handleProfileChange}
-                      required
-                    />
-                    {formErrors.nama_lengkap ? (
-                      <small className="text-danger">❌ {formErrors.nama_lengkap}</small>
-                    ) : (
-                      <small className="text-muted">✍️ Nama lengkap sesuai identitas</small>
-                    )}
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Email</label>
-                    <input
-                      type="email"
-                      className={`form-control ${formErrors.email ? "border-danger" : ""}`}
-                      name="email"
-                      value={formData.email}
-                      onChange={handleProfileChange}
-                      required
-                    />
-                    {formErrors.email ? (
-                      <small className="text-danger">❌ {formErrors.email}</small>
-                    ) : (
-                      <small className="text-muted">✍️ Format email valid. Contoh: nama@domain.com</small>
-                    )}
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">No. Handphone</label>
-                    <input
-                      type="text"
-                      className={`form-control ${formErrors.no_hp ? "border-danger" : ""}`}
-                      name="no_hp"
-                      value={formData.no_hp}
-                      onChange={handleProfileChange}
-                      placeholder="08123456789"
-                      maxLength="13"
-                      inputMode="numeric"
-                      autoComplete="off"
-                    />
-                    {formErrors.no_hp ? (
-                      <small className="text-danger">❌ {formErrors.no_hp}</small>
-                    ) : (
-                      <small className="text-muted">✍️ Hanya angka, 10-13 digit. Contoh: 08123456789</small>
-                    )}
-                  </div>
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "Menyimpan..." : "Simpan Perubahan"}
-                  </button>
-                </form>
-              ) : (
-                <>
-                  <table className="table table-borderless">
-                    <tbody>
-                      <tr>
-                        <th style={{ width: "150px" }}>Nama Lengkap</th>
-                        <td>{user.nama_lengkap}</td>
-                      </tr>
-                      <tr>
-                        <th>Username</th>
-                        <td>{user.username}</td>
-                      </tr>
-                      <tr>
-                        <th>Email</th>
-                        <td>{user.email}</td>
-                      </tr>
-                      <tr>
-                        <th>No. Handphone</th>
-                        <td>{user.no_hp || "-"}</td>
-                      </tr>
-                      <tr>
-                        <th>Role</th>
-                        <td>
-                          <span className="badge bg-secondary">
-                            {user.role}
-                          </span>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Ganti Password */}
-          <div className="card mt-4">
-            <div className="card-header bg-warning text-white">
-              <h5 className="mb-0">Ganti Password</h5>
-            </div>
-            <div className="card-body">
-              <form onSubmit={updatePassword}>
-                <div className="mb-3">
-                  <label className="form-label">Password Lama</label>
-                  <input
-                    type="password"
-                    className="form-control"
-                    name="old_password"
-                    value={passwordData.old_password}
-                    onChange={handlePasswordChange}
-                    required
-                  />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">
-                    Password Baru (min. 6 karakter)
-                  </label>
-                  <input
-                    type="password"
-                    className="form-control"
-                    name="new_password"
-                    value={passwordData.new_password}
-                    onChange={handlePasswordChange}
-                    required
-                  />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Konfirmasi Password Baru</label>
-                  <input
-                    type="password"
-                    className="form-control"
-                    name="confirm_password"
-                    value={passwordData.confirm_password}
-                    onChange={handlePasswordChange}
-                    required
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="btn btn-warning"
-                  disabled={isLoading}
-                >
-                  {isLoading ? "Memproses..." : "Ganti Password"}
-                </button>
-              </form>
-            </div>
-          </div>
+          </form>
         </div>
       </div>
     </div>

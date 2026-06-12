@@ -3,6 +3,9 @@ import API from "../services/api";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
+// Base URL backend untuk file upload
+const BASE_URL = "https://gdb-backend-production-4dd1.up.railway.app";
+
 function LihatLaporan({ user, onLogout, onNavigate }) {
   const [tahunList, setTahunList] = useState([]);
   const [selectedYear, setSelectedYear] = useState("");
@@ -38,6 +41,14 @@ function LihatLaporan({ user, onLogout, onNavigate }) {
   };
 
   const fetchProgramByYear = async (tahun) => {
+    // ✅ Validasi: tahun harus 4 digit angka
+    if (!tahun || !/^\d{4}$/.test(tahun)) {
+      setProgramList([]);
+      setSelectedProgramId("");
+      setReport(null);
+      return;
+    }
+
     setFetchingPrograms(true);
     setSelectedProgramId("");
     setReport(null);
@@ -46,7 +57,7 @@ function LihatLaporan({ user, onLogout, onNavigate }) {
       const response = await API.get("/program-kerja");
       if (response.data.status === "success") {
         const filtered = response.data.data.filter(
-          (prog) => prog.status_program === "Selesai" && prog.periode === tahun
+          (prog) => prog.status_program === "Selesai" && prog.periode === tahun,
         );
         setProgramList(filtered);
       }
@@ -56,7 +67,7 @@ function LihatLaporan({ user, onLogout, onNavigate }) {
         const res = await API.get("/program-kerja/selesai");
         if (res.data.status === "success") {
           const filtered = res.data.data.filter(
-            (prog) => prog.periode === tahun
+            (prog) => prog.periode === tahun,
           );
           setProgramList(filtered);
         }
@@ -69,8 +80,17 @@ function LihatLaporan({ user, onLogout, onNavigate }) {
   };
 
   const fetchReport = async () => {
+    // ✅ Validasi: pastikan program dipilih dan valid
     if (!selectedProgramId) {
       alert("⚠️ Pilih program kerja terlebih dahulu!");
+      return;
+    }
+
+    // ✅ Validasi: pastikan selectedProgramId ada di programList
+    const isValid = programList.some((p) => p.id_program == selectedProgramId);
+    if (!isValid) {
+      alert("⚠️ Program tidak valid. Silakan pilih ulang!");
+      setSelectedProgramId("");
       return;
     }
 
@@ -107,29 +127,39 @@ function LihatLaporan({ user, onLogout, onNavigate }) {
       return;
     }
 
-    // Data ringkasan
+    // ✅ Data ringkasan - Semua nominal pakai titik
     const ringkasanData = [
       {
         "Nama Program": report.program?.nama_program || "-",
         "Tahun Ajaran": report.program?.periode || "-",
-        "Status": report.program?.status || "-",
-        "Total Pemasukan": report.ringkasan?.total_pemasukan || 0,
-        "Total Pengeluaran": report.ringkasan?.total_pengeluaran || 0,
-        "Sisa Saldo": report.ringkasan?.sisa_saldo || 0,
-        "Total Anggaran": report.ringkasan?.total_anggaran || 0,
-        "Realisasi Anggaran": report.ringkasan?.realisasi_anggaran || 0,
-        "Persentase": `${report.ringkasan?.persentase || 0}%`,
+        Status: report.program?.status || "-",
+        "Total Pemasukan": Number(
+          report.ringkasan?.total_pemasukan || 0,
+        ).toLocaleString("id-ID"),
+        "Total Pengeluaran": Number(
+          report.ringkasan?.total_pengeluaran || 0,
+        ).toLocaleString("id-ID"),
+        "Sisa Saldo": Number(report.ringkasan?.sisa_saldo || 0).toLocaleString(
+          "id-ID",
+        ),
+        "Total Anggaran": Number(
+          report.ringkasan?.total_anggaran || 0,
+        ).toLocaleString("id-ID"),
+        "Realisasi Anggaran": Number(
+          report.ringkasan?.realisasi_anggaran || 0,
+        ).toLocaleString("id-ID"),
+        Persentase: `${report.ringkasan?.persentase || 0}%`,
       },
     ];
 
-    // Data transaksi
+    // ✅ Data transaksi - Nominal pakai titik
     const transaksiData = (report.transaksi || []).map((t, index) => ({
-      "No": index + 1,
-      "Tanggal": t.tanggal,
-      "Jenis": t.jenis,
-      "Nominal": t.nominal,
-      "Keterangan": t.keterangan || "-",
-      "Bukti": t.bukti_file || "-",
+      No: index + 1,
+      Tanggal: t.tanggal,
+      Jenis: t.jenis,
+      Nominal: Number(t.nominal || 0).toLocaleString("id-ID"),
+      Keterangan: t.keterangan || "-",
+      Bukti: t.bukti_file ? `${BASE_URL}/uploads/${t.bukti_file}` : "-",
     }));
 
     // Buat workbook
@@ -141,11 +171,11 @@ function LihatLaporan({ user, onLogout, onNavigate }) {
       { wch: 25 },
       { wch: 15 },
       { wch: 12 },
-      { wch: 20 },
-      { wch: 20 },
-      { wch: 20 },
-      { wch: 20 },
-      { wch: 20 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 22 },
       { wch: 12 },
     ];
     XLSX.utils.book_append_sheet(workbook, wsRingkasan, "Ringkasan");
@@ -157,9 +187,9 @@ function LihatLaporan({ user, onLogout, onNavigate }) {
         { wch: 5 },
         { wch: 15 },
         { wch: 10 },
-        { wch: 20 },
+        { wch: 22 },
         { wch: 40 },
-        { wch: 20 },
+        { wch: 60 },
       ];
       XLSX.utils.book_append_sheet(workbook, wsTransaksi, "Transaksi");
     }
@@ -418,7 +448,9 @@ function LihatLaporan({ user, onLogout, onNavigate }) {
             <div className="card-header py-2 d-flex justify-content-between align-items-center">
               <h6 className="mb-0">📋 Detail Transaksi</h6>
               {report.transaksi && report.transaksi.length > 0 && (
-                <small className="text-muted">{report.transaksi.length} transaksi</small>
+                <small className="text-muted">
+                  {report.transaksi.length} transaksi
+                </small>
               )}
             </div>
             <div className="card-body p-2 p-md-3">
@@ -455,7 +487,7 @@ function LihatLaporan({ user, onLogout, onNavigate }) {
                         <td className="text-center">
                           {t.bukti_file ? (
                             <a
-                              href={`https://gdb-backend-production-4dd1.up.railway.app/uploads/${t.bukti_file}`}
+                              href={`${BASE_URL}/uploads/${t.bukti_file}`}
                               target="_blank"
                               rel="noreferrer"
                               className="small"
@@ -505,10 +537,7 @@ function LihatLaporan({ user, onLogout, onNavigate }) {
 
           {/* Tombol Export Excel (Bottom) */}
           <div className="d-flex justify-content-end mb-4">
-            <button
-              className="btn btn-success"
-              onClick={handleExportExcel}
-            >
+            <button className="btn btn-success" onClick={handleExportExcel}>
               📥 Export ke Excel
             </button>
           </div>

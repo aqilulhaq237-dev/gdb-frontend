@@ -1,119 +1,208 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import API from "../services/api";
+import { swalSukses, swalError, swalWarning, swalHapus } from '../utils/swal';
 
-function KelolaKategori({ user, onLogout, onNavigate }) {
-  const [kategoriList, setKategoriList] = useState([]);
+function KelolaPeriodeAktif({ user, onLogout, onNavigate }) {
+  const [tahunList, setTahunList] = useState([]);
+  const [selectedTahun, setSelectedTahun] = useState([]);
+  const [newTahun, setNewTahun] = useState("");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
-  const [showModal, setShowModal] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [formData, setFormData] = useState({
-    nama_kategori: "",
-    deskripsi_kategori: "",
-    status: "Aktif",
-  });
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [dropdownStyle, setDropdownStyle] = useState({});
+  const dropdownRef = useRef(null);
+  const inputRef = useRef(null);
+  const arrowRef = useRef(null);
+
+  const currentYear = new Date().getFullYear();
+
+  const suggestionYears = [
+    `${currentYear + 2}/${currentYear + 3}`,
+    `${currentYear + 2}`,
+    `${currentYear + 1}/${currentYear + 2}`,
+    `${currentYear + 1}`,
+    `${currentYear}/${currentYear + 1}`,
+    `${currentYear}`,
+    `${currentYear - 1}/${currentYear}`,  
+    `${currentYear - 1}`,
+    `${currentYear - 2}/${currentYear - 1}`,
+    `${currentYear - 2}`,
+  ];
+
+  const filteredSuggestions = suggestionYears.filter(
+    (year) =>
+      !tahunList.includes(year) &&
+      year.toLowerCase().includes(newTahun.toLowerCase()),
+  );
 
   useEffect(() => {
-    fetchKategori();
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const fetchKategori = async () => {
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const updateDropdownPosition = () => {
+    if (arrowRef.current) {
+      const rect = arrowRef.current.getBoundingClientRect();
+      setDropdownStyle({
+        position: "fixed",
+        zIndex: 9999,
+        maxHeight: "200px",
+        overflowY: "auto",
+        width: "220px",
+        top: `${rect.bottom + 4}px`,
+        left: `${rect.right - 220}px`,
+        whiteSpace: "nowrap",
+      });
+    }
+  };
+
+  const handleInputFocus = () => {
+    updateDropdownPosition();
+    setShowDropdown(true);
+  };
+
+  const handleInputChange = (e) => {
+    const value = e.target.value.replace(/\D/g, "").slice(0, 4);
+    setNewTahun(value);
+    if (!showDropdown) {
+      updateDropdownPosition();
+      setShowDropdown(true);
+    }
+  };
+
+  const fetchData = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const response = await API.get("/kategori");
-      if (response.data.status === "success") {
-        setKategoriList(response.data.data);
+      const tahunResponse = await API.get("/periode/tahun-list");
+      if (tahunResponse.data.status === "success") {
+        setTahunList(tahunResponse.data.data);
       }
-    } catch (err) {
-      console.error("Gagal memuat kategori:", err);
-      setError("Gagal memuat data kategori.");
+
+      const aktifResponse = await API.get("/periode/aktif");
+      if (aktifResponse.data.status === "success") {
+        setSelectedTahun(aktifResponse.data.data || []);
+      }
+    } catch (error) {
+      console.error("Gagal memuat data:", error);
+      const cy = new Date().getFullYear();
+      setTahunList([
+        `${cy}/${cy + 1}`, `${cy}`, `${cy - 1}/${cy}`, `${cy - 1}`,
+      ]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+  const handleCheckboxChange = (tahun) => {
+    setSelectedTahun((prev) => {
+      if (prev.includes(tahun)) {
+        return prev.filter((t) => t !== tahun);
+      } else {
+        if (prev.length >= 2) {
+          swalWarning('Perhatian!', 'Maksimal hanya dapat memilih 2 tahun!');
+          return prev;
+        }
+        return [...prev, tahun];
+      }
+    });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleTambahTahun = async (tahunInput = null) => {
+    const tahun = tahunInput || newTahun.trim();
 
-    if (!formData.nama_kategori.trim()) {
-      setError("⚠️ Nama kategori wajib diisi!");
+    if (!tahun) {
+      swalWarning('Perhatian!', 'Masukkan atau pilih tahun!');
+      return;
+    }
+
+    if (tahunList.includes(tahun)) {
+      swalWarning('Perhatian!', 'Tahun sudah ada dalam daftar!');
       return;
     }
 
     try {
-      setSubmitting(true);
-      setError("");
-
-      if (editingId) {
-        await API.put(`/kategori/${editingId}`, formData);
-        setSuccessMessage("✅ Kategori berhasil diupdate!");
-      } else {
-        await API.post("/kategori", formData);
-        setSuccessMessage("✅ Kategori berhasil ditambahkan!");
+      const response = await API.post("/periode/tahun", { tahun });
+      if (response.data.status === "success") {
+        setNewTahun("");
+        setShowDropdown(false);
+        swalSukses('Berhasil!', 'Tahun berhasil ditambahkan!');
+        fetchData();
       }
-
-      setTimeout(() => setSuccessMessage(""), 3000);
-      closeModal();
-      fetchKategori();
-    } catch (err) {
-      console.error("Gagal menyimpan:", err);
-      setError("❌ Gagal menyimpan kategori.");
-    } finally {
-      setSubmitting(false);
+    } catch (error) {
+      console.error("Gagal menambah tahun:", error);
+      setTahunList((prev) => {
+        const updated = [...prev, tahun];
+        return updated.sort((a, b) => {
+          const yearA = parseInt(a.split("/")[0]);
+          const yearB = parseInt(b.split("/")[0]);
+          return yearB - yearA;
+        });
+      });
+      setNewTahun("");
+      setShowDropdown(false);
+      swalSukses('Berhasil!', 'Tahun berhasil ditambahkan!');
     }
   };
 
-  const handleEdit = (kategori) => {
-    setEditingId(kategori.id_kategori);
-    setFormData({
-      nama_kategori: kategori.nama_kategori || "",
-      deskripsi_kategori: kategori.deskripsi_kategori || "",
-      status: kategori.status || "Aktif",
-    });
-    setShowModal(true);
-  };
+  const handleSimpan = async () => {
+    if (selectedTahun.length === 0) {
+      swalWarning('Perhatian!', 'Pilih minimal 1 tahun!');
+      return;
+    }
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Hapus kategori ini?")) return;
-
+    setSaving(true);
     try {
-      await API.delete(`/kategori/${id}`);
-      setSuccessMessage("✅ Kategori berhasil dihapus!");
-      setTimeout(() => setSuccessMessage(""), 3000);
-      fetchKategori();
-    } catch (err) {
-      setError("❌ Gagal menghapus kategori.");
+      const response = await API.post("/periode/aktif", { tahun_list: selectedTahun });
+      if (response.data.status === "success") {
+        swalSukses('Berhasil!', 'Periode aktif berhasil disimpan!');
+      }
+    } catch (error) {
+      console.error("Gagal menyimpan:", error);
+      swalError('Gagal!', 'Gagal menyimpan. Coba lagi.');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const closeModal = () => {
-    setShowModal(false);
-    setEditingId(null);
-    setFormData({
-      nama_kategori: "",
-      deskripsi_kategori: "",
-      status: "Aktif",
-    });
-    setError("");
+  const handleHapusTahun = async (tahun) => {
+    const result = await swalHapus(`Tahun "${tahun}" akan dihapus.`);
+    if (result.isConfirmed) {
+      if (selectedTahun.includes(tahun)) {
+        setSelectedTahun((prev) => prev.filter((t) => t !== tahun));
+      }
+      try {
+        await API.delete(`/periode/tahun/${encodeURIComponent(tahun)}`);
+        swalSukses('Berhasil!', 'Tahun berhasil dihapus!');
+        fetchData();
+      } catch (error) {
+        setTahunList((prev) => prev.filter((t) => t !== tahun));
+        swalSukses('Berhasil!', 'Tahun berhasil dihapus!');
+      }
+    }
   };
 
-  const getStatusBadge = (status) => {
-    return status === "Aktif" ? "bg-success" : "bg-secondary";
-  };
+  const sortedTahunList = [...tahunList].sort((a, b) => {
+    const yearA = parseInt(a.split("/")[0]);
+    const yearB = parseInt(b.split("/")[0]);
+    return yearB - yearA;
+  });
 
   if (loading) {
     return (
       <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "60vh" }}>
         <div className="text-center">
-          <div className="spinner-border text-primary" />
-          <p className="mt-3 text-muted">Memuat data kategori...</p>
+          <div className="spinner-border text-primary" role="status" />
+          <p className="mt-3 text-muted">Memuat data periode...</p>
         </div>
       </div>
     );
@@ -123,152 +212,135 @@ function KelolaKategori({ user, onLogout, onNavigate }) {
     <div className="px-3 px-md-4 py-3 w-100">
       {/* Header */}
       <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
-        <h1 className="text-primary h4 mb-0">📂 Kelola Kategori Program</h1>
+        <h1 className="text-primary h4 mb-0">📅 Kelola Periode Aktif</h1>
         <div className="d-flex align-items-center gap-2 flex-wrap">
-          <span className="text-nowrap small">
-            Halo, <strong>{user.nama_lengkap}</strong>
-          </span>
+          <span className="text-nowrap small">Halo, <strong>{user.nama_lengkap}</strong></span>
           <span className="badge bg-secondary small">{user.role}</span>
-          <button className="btn btn-outline-secondary btn-sm" onClick={() => onNavigate("dashboard")}>
-            📊 Dashboard
-          </button>
-          <button className="btn btn-danger btn-sm" onClick={onLogout}>
-            🚪 Logout
-          </button>
+          <button className="btn btn-outline-secondary btn-sm" onClick={() => onNavigate("dashboard")}>📊 Dashboard</button>
+          <button className="btn btn-danger btn-sm" onClick={onLogout}>🚪 Logout</button>
         </div>
       </div>
 
-      {successMessage && (
-        <div className="alert alert-success py-2 mb-3">{successMessage}</div>
-      )}
-
-      {error && (
-        <div className="alert alert-danger py-2 mb-3 d-flex align-items-center justify-content-between">
-          <span>{error}</span>
-          <button className="btn-close" onClick={() => setError("")}></button>
+      {/* Pesan */}
+      {message && (
+        <div className={`alert ${message.includes("✅") ? "alert-success" : "alert-warning"} alert-dismissible fade show py-2 small`}>
+          {message}
+          <button type="button" className="btn-close" onClick={() => setMessage("")}></button>
         </div>
       )}
 
-      <div className="mb-3">
-        <button className="btn btn-success" onClick={() => setShowModal(true)}>
-          ➕ Tambah Kategori
-        </button>
+      {/* Info Periode Aktif */}
+      <div className="alert alert-info py-2 small mb-3">
+        <span className="me-2">📌</span>
+        <strong>Periode Aktif Saat Ini:</strong>{" "}
+        {selectedTahun.length > 0 ? (
+          selectedTahun.map((t, i) => <span key={i} className="badge bg-success me-1">{t}</span>)
+        ) : (
+          <span className="text-muted">Belum dipilih</span>
+        )}
       </div>
 
-      <div className="card shadow-sm">
-        <div className="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
-          <h5 className="mb-0 h6">📋 Daftar Kategori Program</h5>
-          <span className="badge bg-light text-dark small">{kategoriList.length} kategori</span>
+      {/* Card Tabel */}
+      <div className="card shadow-sm w-100">
+        <div className="card-header card-header-orange text-white d-flex flex-wrap justify-content-between align-items-center py-2 gap-2">
+          <h5 className="mb-0 h6">📋 Daftar Tahun - Pilih Periode Aktif</h5>
+          <span className={`badge ${selectedTahun.length >= 2 ? "bg-danger" : "bg-light text-dark"}`}>Terpilih: {selectedTahun.length}/2</span>
         </div>
         <div className="card-body p-2 p-md-3">
-          {kategoriList.length === 0 ? (
-            <div className="text-center py-4 text-muted">Belum ada kategori</div>
-          ) : (
-            <div className="table-responsive">
-              <table className="table table-bordered table-hover align-middle mb-0 small">
-                <thead className="table-light text-center">
-                  <tr>
-                    <th>No</th>
-                    <th>Nama Kategori</th>
-                    <th>Deskripsi</th>
-                    <th>Status</th>
-                    <th>Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {kategoriList.map((k, index) => (
-                    <tr key={k.id_kategori}>
-                      <td className="text-center">{index + 1}</td>
-                      <td><strong>{k.nama_kategori}</strong></td>
-                      <td>{k.deskripsi_kategori || "-"}</td>
+          <table className="table table-bordered table-hover align-middle mb-0 w-100">
+            <thead className="table-light text-center">
+              <tr>
+                <th style={{ width: "10%" }}>Pilih</th>
+                <th style={{ width: "45%" }}>Tahun</th>
+                <th style={{ width: "25%" }}>Status</th>
+                <th style={{ width: "20%" }}>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedTahunList.length === 0 ? (
+                <tr>
+                  <td colSpan="4" className="text-center py-4 text-muted small">📭 Belum ada tahun tersedia.</td>
+                </tr>
+              ) : (
+                sortedTahunList.map((tahun, index) => {
+                  const isSelected = selectedTahun.includes(tahun);
+                  const isDisabled = !isSelected && selectedTahun.length >= 2;
+                  return (
+                    <tr key={index} className={isSelected ? "table-success" : ""}>
                       <td className="text-center">
-                        <span className={`badge ${getStatusBadge(k.status)}`}>
-                          {k.status}
-                        </span>
+                        <input type="checkbox" style={{ width: "18px", height: "18px", cursor: isDisabled ? "not-allowed" : "pointer", opacity: isDisabled ? "0.4" : "1" }}
+                          checked={isSelected} onChange={() => handleCheckboxChange(tahun)} disabled={isDisabled} />
+                      </td>
+                      <td><strong className="small">{tahun}</strong></td>
+                      <td className="text-center">
+                        {isSelected ? <span className="badge bg-success small px-2">✅ Aktif</span> :
+                         isDisabled ? <span className="badge bg-secondary small px-2">🔒 Maks. 2</span> :
+                         <span className="badge bg-light text-dark border small px-2">⬜ Tidak Aktif</span>}
                       </td>
                       <td className="text-center">
-                        <button className="btn btn-warning btn-sm me-1" onClick={() => handleEdit(k)}>✏️</button>
-                        <button className="btn btn-danger btn-sm" onClick={() => handleDelete(k.id_kategori)}>🗑️</button>
+                        <button className="btn btn-outline-danger btn-sm" onClick={() => handleHapusTahun(tahun)}>🗑️</button>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  );
+                })
+              )}
+
+              {/* Baris Input Tambah Tahun */}
+              <tr className="table-active">
+                <td></td>
+                <td style={{ position: "relative" }}>
+                  <input ref={inputRef} type="text" className="form-control form-control-sm" placeholder="➕ Tambah tahun..."
+                    value={newTahun} onChange={handleInputChange} onFocus={handleInputFocus}
+                    onClick={() => { updateDropdownPosition(); setShowDropdown(true); }}
+                    onKeyDown={(e) => {
+                      const allowedKeys = ["Backspace","Delete","ArrowLeft","ArrowRight","Tab","0","1","2","3","4","5","6","7","8","9"];
+                      if (!allowedKeys.includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault();
+                      if (e.key === "Enter") { e.preventDefault(); handleTambahTahun(); }
+                    }}
+                    maxLength="4" inputMode="numeric" autoComplete="off"
+                    style={{ cursor: "pointer", paddingRight: "30px" }} />
+                  <span ref={arrowRef} style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none", fontSize: "12px", color: "#6c757d" }}>▼</span>
+                </td>
+                <td></td>
+                <td className="text-center">
+                  <button className="btn btn-success btn-sm" onClick={() => handleTambahTahun()}>➕ Tambah</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Footer */}
+        <div className="card-footer d-flex flex-wrap justify-content-between align-items-center py-2 gap-2">
+          <small className="text-muted">💡 Maksimal memilih <strong>2 tahun</strong></small>
+          <button className="btn btn-primary" onClick={handleSimpan} disabled={selectedTahun.length === 0 || saving}>
+            {saving ? <><span className="spinner-border spinner-border-sm me-1" style={{ width: "14px", height: "14px" }}></span>Menyimpan...</> : <>💾 Simpan Periode Aktif</>}
+          </button>
         </div>
       </div>
 
-      {/* Modal */}
-      {showModal && (
-        <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header bg-primary text-white py-2">
-                <h5 className="modal-title h6">
-                  {editingId ? "✏️ Edit Kategori" : "➕ Tambah Kategori"}
-                </h5>
-                <button type="button" className="btn-close btn-close-white" onClick={closeModal}></button>
-              </div>
-              <form onSubmit={handleSubmit}>
-                <div className="modal-body">
-                  {error && <div className="alert alert-danger py-2 mb-3">{error}</div>}
-
-                  <div className="mb-3">
-                    <label className="form-label small fw-bold">
-                      Nama Kategori <span className="text-danger">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control form-control-sm"
-                      name="nama_kategori"
-                      value={formData.nama_kategori}
-                      onChange={handleInputChange}
-                      required
-                      placeholder="Contoh: Workshop, Bootcamp, Seminar"
-                    />
-                  </div>
-
-                  <div className="mb-3">
-                    <label className="form-label small fw-bold">Deskripsi</label>
-                    <textarea
-                      className="form-control form-control-sm"
-                      name="deskripsi_kategori"
-                      rows="3"
-                      value={formData.deskripsi_kategori}
-                      onChange={handleInputChange}
-                      placeholder="Deskripsi kategori (opsional)"
-                    ></textarea>
-                  </div>
-
-                  <div className="mb-3">
-                    <label className="form-label small fw-bold">Status</label>
-                    <select
-                      className="form-select form-select-sm"
-                      name="status"
-                      value={formData.status}
-                      onChange={handleInputChange}
-                    >
-                      <option value="Aktif">🟢 Aktif</option>
-                      <option value="Nonaktif">⚪ Nonaktif</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="modal-footer py-2">
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={closeModal}>
-                    ❌ Batal
-                  </button>
-                  <button type="submit" className="btn btn-primary btn-sm" disabled={submitting}>
-                    {submitting ? "⏳ Menyimpan..." : "💾 Simpan"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
+      {/* ✅ DROPDOWN DI KANAN BAWAH ▼ */}
+      {showDropdown && (
+        <ul ref={dropdownRef} className="list-group shadow" style={dropdownStyle}>
+          {filteredSuggestions.length > 0 ? (
+            filteredSuggestions.map((year, i) => (
+              <li key={i} className="list-group-item list-group-item-action py-2 px-3 small" style={{ cursor: "pointer" }}
+                onClick={() => { setNewTahun(year); setShowDropdown(false); inputRef.current?.focus(); }}>
+                {year}
+              </li>
+            ))
+          ) : newTahun.trim() ? (
+            <li className="list-group-item list-group-item-action py-2 px-3 text-primary small" style={{ cursor: "pointer" }}
+              onClick={() => { setShowDropdown(false); inputRef.current?.focus(); }}>
+              ➕ Tekan Enter atau klik Tambah untuk "{newTahun.trim()}"
+            </li>
+          ) : (
+            <li className="list-group-item py-2 px-3 text-muted small">Ketik untuk mencari...</li>
+          )}
+        </ul>
       )}
     </div>
   );
 }
 
-export default KelolaKategori;
+export default KelolaPeriodeAktif;

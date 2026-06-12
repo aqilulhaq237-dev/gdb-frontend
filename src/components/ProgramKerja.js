@@ -1,505 +1,241 @@
-import React, { useEffect, useState } from "react";
-import API from "../services/api";
+import React, { useEffect, useState } from 'react';
+import API from '../services/api';
+import { swalSukses, swalError } from '../utils/swal';
 
 function ProgramKerja({ user, onLogout, onNavigate }) {
   const [programs, setPrograms] = useState([]);
+  const [kategoriList, setKategoriList] = useState([]);
+  const [periodeAktif, setPeriodeAktif] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
-    nama_program: "",
-    deskripsi_program: "",
-    periode: new Date().getFullYear().toString(),
-    kategori: "",
-    status: "Rencana",
+    nama_program: '',
+    deskripsi_program: '',
+    periode: '',
+    kategori: '',
+    status: 'Rencana'
   });
-  const [periodeAktif, setPeriodeAktif] = useState([]);
-  // ========== REVISI 4: Filter program berdasarkan periode aktif & sembunyikan yang Selesai ==========
-  const fetchPrograms = async () => {
+  const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
     setLoading(true);
     try {
-      // Ambil periode aktif dari endpoint baru
-      const periodeResponse = await API.get("/periode/aktif");
-      let periodeAktif = [];
+      const periodeRes = await API.get('/periode/aktif');
+      const periodeData = periodeRes.data.data || [];
+      setPeriodeAktif(periodeData);
 
-      if (periodeResponse.data.status === "success") {
-        periodeAktif = periodeResponse.data.data || [];
-        setPeriodeAktif(periodeAktif);
+      const progRes = await API.get('/program-kerja');
+      if (progRes.data.status === 'success') {
+        let allPrograms = progRes.data.data;
+        if (periodeData.length > 0) {
+          allPrograms = allPrograms.filter(prog =>
+            periodeData.some(p => prog.periode?.toString() === p.toString())
+          );
+        }
+        // ✅ Urutkan: terbaru di atas (id_program DESC)
+        allPrograms.sort((a, b) => (b.id_program || 0) - (a.id_program || 0));
+        setPrograms(allPrograms);
       }
 
-      // Ambil semua program kerja
-      const response = await API.get("/program-kerja");
-
-      if (response.data.status === "success") {
-        let filteredPrograms = response.data.data;
-
-        // Filter: sembunyikan yang status Selesai
-        filteredPrograms = filteredPrograms.filter(
-          (prog) => prog.status_program !== "Selesai",
-        );
-
-        // Filter: hanya tampilkan yang sesuai periode aktif
-        if (periodeAktif.length > 0) {
-          filteredPrograms = filteredPrograms.filter((prog) => {
-            // Cek apakah periode program ada dalam daftar periode aktif
-            return periodeAktif.some((periode) => {
-              return prog.periode?.toString() === periode.toString();
-            });
-          });
-        }
-
-        setPrograms(filteredPrograms);
+      const katRes = await API.get('/kategori');
+      if (katRes.data.status === 'success') {
+        setKategoriList(katRes.data.data.filter(k => k.status === 'Aktif'));
       }
     } catch (error) {
-      console.error("Gagal mengambil data:", error);
-      // Fallback: ambil tanpa filter
-      try {
-        const response = await API.get("/program-kerja");
-        if (response.data.status === "success") {
-          const filtered = response.data.data.filter(
-            (prog) => prog.status_program !== "Selesai",
-          );
-          setPrograms(filtered);
-        }
-      } catch (err) {
-        console.error("Gagal fallback:", err);
-      }
+      console.error('Gagal memuat data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchPrograms();
-  }, []);
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.nama_program.trim()) newErrors.nama_program = 'Nama program wajib diisi';
+    if (!formData.periode.trim()) newErrors.periode = 'Periode wajib diisi';
+    if (!formData.kategori.trim()) newErrors.kategori = 'Kategori wajib dipilih';
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      if (editingId) {
-        await API.put(`/program-kerja/${editingId}`, formData);
-        alert("✅ Program kerja berhasil diubah");
-      } else {
-        // REVISI 2: Status otomatis "Rencana" untuk program baru
-        const dataToSend = {
-          ...formData,
-          status: "Rencana", // Pastikan status selalu Rencana saat tambah baru
-        };
-        await API.post("/program-kerja", dataToSend);
-        alert("✅ Program kerja berhasil ditambahkan");
-      }
-      setShowModal(false);
-      setEditingId(null);
-      setFormData({
-        nama_program: "",
-        deskripsi_program: "",
-        periode: new Date().getFullYear().toString(),
-        kategori: "",
-        status: "Rencana",
-      });
-      fetchPrograms();
-    } catch (error) {
-      console.error(error);
-      alert("❌ Gagal menyimpan data");
-    }
-  };
-
-  const handleDelete = async (id, status) => {
-    if (status === "Selesai") {
-      alert("⚠️ Program kerja yang sudah selesai tidak dapat dihapus!");
-      return;
-    }
-    if (window.confirm("Yakin ingin menghapus program kerja ini?")) {
-      try {
-        await API.delete(`/program-kerja/${id}`);
-        alert("✅ Program kerja berhasil dihapus");
-        fetchPrograms();
-      } catch (error) {
-        console.error(error);
-        alert("❌ Gagal menghapus program kerja");
-      }
-    }
-  };
-
-  // ========== REVISI 1: Fungsi untuk navigasi ke Isi RAB ==========
-  const handleIsiRAB = (program) => {
-    // Simpan data program yang dipilih ke localStorage
-    localStorage.setItem(
-      "selectedProgramRAB",
-      JSON.stringify({
-        id_program: program.id_program,
-        nama_program: program.nama_program,
-        periode: program.periode,
-      }),
-    );
-    // Navigasi ke halaman Kelola RAB
-    onNavigate("kelola-rab");
+    if (errors[e.target.name]) setErrors({ ...errors, [e.target.name]: '' });
   };
 
   const openAddModal = () => {
     setEditingId(null);
-    setFormData({
-      nama_program: "",
-      deskripsi_program: "",
-      periode: new Date().getFullYear().toString(),
-      kategori: "",
-      status: "Rencana",
-    });
+    setFormData({ nama_program: '', deskripsi_program: '', periode: '', kategori: '', status: 'Rencana' });
+    setErrors({});
     setShowModal(true);
   };
 
-  const openEditModal = (program) => {
-    if (program.status_program === "Selesai") {
-      alert("⚠️ Program kerja yang sudah selesai tidak dapat diedit!");
-      return;
+  const openEditModal = (prog) => {
+    setEditingId(prog.id_program);
+    setFormData({
+      nama_program: prog.nama_program,
+      deskripsi_program: prog.deskripsi_program || '',
+      periode: prog.periode || '',
+      kategori: prog.kategori || '',
+      status: prog.status_program || 'Rencana'
+    });
+    setErrors({});
+    setShowModal(true);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    setSaving(true);
+    try {
+      if (editingId) {
+        await API.put(`/program-kerja/${editingId}`, formData);
+        swalSukses('Berhasil!', 'Program kerja berhasil diupdate');
+      } else {
+        await API.post('/program-kerja', formData);
+        swalSukses('Berhasil!', 'Program kerja berhasil ditambahkan');
+      }
+      setShowModal(false);
+      fetchData();
+    } catch (error) {
+      swalError('Gagal!', error.response?.data?.message || 'Gagal menyimpan data');
+    } finally {
+      setSaving(false);
     }
-    setEditingId(program.id_program);
-    setFormData({
-      nama_program: program.nama_program,
-      deskripsi_program: program.deskripsi_program || "",
-      periode: program.periode || new Date().getFullYear().toString(),
-      kategori: program.kategori || "",
-      status: program.status_program,
-    });
-    setShowModal(true);
   };
-
-  const kategoriList = [
-    "Workshop & Mentoring",
-    "Game Jam & Hackathon",
-    "Feedback & Review",
-    "Open Course & Event",
-    "Roadshow",
-    "Bootcamp",
-  ];
 
   const getStatusBadge = (status) => {
     switch (status) {
-      case "Selesai":
-        return "bg-success";
-      case "Berjalan":
-        return "bg-primary";
-      case "Batal":
-        return "bg-danger";
-      default:
-        return "bg-warning";
+      case 'Selesai': return 'bg-success';
+      case 'Berjalan': return 'bg-primary';
+      case 'Batal': return 'bg-danger';
+      default: return 'bg-warning';
     }
-  };
-
-  // ========== Format periode untuk tampilan ==========
-  const formatPeriode = (periode) => {
-    if (!periode) return "-";
-    return periode.toString();
   };
 
   if (loading) {
     return (
-      <div className="container mt-5 text-center">
-        <div className="spinner-border text-primary" />
-        <p className="mt-3">Memuat data program kerja...</p>
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
+        <div className="text-center">
+          <div className="spinner-border text-primary" />
+          <p className="mt-3 text-muted">Memuat data program...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="container-fluid">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h1 className="text-primary">📋 Kelola Program Kerja</h1>
-        <div className="d-flex align-items-center gap-2">
-          <span className="me-2">
-            Halo, <strong>{user.nama_lengkap}</strong>
-          </span>
-          <span className="badge bg-secondary me-2">{user.role}</span>
-          <button
-            className="btn btn-outline-secondary me-2"
-            onClick={() => onNavigate("dashboard")}
-          >
-            📊 Dashboard
-          </button>
-          <button className="btn btn-danger btn-sm" onClick={onLogout}>
-            🚪 Logout
-          </button>
+    <div className="px-3 px-md-4 py-3 w-100">
+      <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+        <h1 className="text-primary h4 mb-0">📋 Kelola Program Kerja</h1>
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          <span className="text-nowrap small">Halo, <strong>{user.nama_lengkap}</strong></span>
+          <span className="badge bg-secondary small">{user.role}</span>
+          <button className="btn btn-outline-secondary btn-sm" onClick={() => onNavigate('dashboard')}>📊 Dashboard</button>
+          <button className="btn btn-danger btn-sm" onClick={onLogout}>🚪 Logout</button>
         </div>
       </div>
 
-      {/* Info Periode Aktif */}
-      <div className="alert alert-info mb-3 py-2 small">
-        <span className="me-2">📅</span>
-        <strong>Periode Aktif:</strong>{" "}
-        {periodeAktif.length > 0 ? (
-          periodeAktif.map((t, i) => (
-            <span key={i} className="badge bg-success me-1">
-              {t}
-            </span>
-          ))
-        ) : (
-          <span className="text-muted">Semua periode</span>
-        )}
-        <span className="ms-2 text-muted">
-          | Program selesai tidak ditampilkan
-        </span>
+      <div className="alert alert-info py-2 small mb-3">
+        📅 <strong>Periode Aktif:</strong>{' '}
+        {periodeAktif.length > 0 ? periodeAktif.map((t, i) => <span key={i} className="badge bg-success me-1">{t}</span>) : <span className="text-muted">Semua</span>}
       </div>
 
-      <div className="alert alert-info mb-3">
-        <small>
-          📅 <strong>Periode Aktif:</strong> Hanya menampilkan program yang
-          belum selesai sesuai periode aktif.
-        </small>
-      </div>
-
-      <div className="mb-3">
-        <button className="btn btn-success" onClick={openAddModal}>
-          ➕ Tambah Program Kerja
-        </button>
-      </div>
-
-      <div className="card">
-        <div className="card-header bg-primary text-white">
-          <h5 className="mb-0">📋 Daftar Program Kerja Aktif</h5>
+      <div className="card shadow-sm">
+        <div className="card-header card-header-green py-2 d-flex justify-content-between align-items-center">
+          <h5 className="mb-0 h6">📋 Daftar Program Kerja</h5>
+          <button className="btn btn-light btn-sm" onClick={openAddModal}>➕ Tambah Program</button>
         </div>
-        <div className="card-body">
+        <div className="card-body p-2 p-md-3">
           {programs.length === 0 ? (
-            <div className="text-center py-4">
-              <p className="text-muted">📭 Belum ada program kerja aktif</p>
-              <small className="text-muted">
-                Program yang sudah selesai tidak ditampilkan di sini. Lihat menu{" "}
-                <strong>Riwayat</strong> untuk program yang sudah selesai.
-              </small>
-            </div>
+            <div className="text-center py-4 text-muted">Belum ada program kerja</div>
           ) : (
-            <div className="table-responsive">
-              <table className="table table-bordered table-hover">
-                <thead className="table-light">
-                  <tr>
-                    <th>No</th>
-                    <th>Nama Program</th>
-                    <th>Deskripsi</th>
-                    <th>Periode</th>
-                    <th>Kategori</th>
-                    <th>Status</th>
-                    <th>Aksi</th>
+            <table className="table table-bordered table-hover align-middle mb-0 small">
+              <thead className="table-light text-center">
+                <tr>
+                  <th>No</th>
+                  <th>Nama Program</th>
+                  <th>Periode</th>
+                  <th>Kategori</th>
+                  <th>Status</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {programs.map((prog, index) => (
+                  <tr key={prog.id_program}>
+                    <td className="text-center">{index + 1}</td>
+                    <td>
+                      <strong>{prog.nama_program}</strong>
+                      {prog.deskripsi_program && <small className="text-muted d-block">{prog.deskripsi_program.substring(0, 60)}{prog.deskripsi_program.length > 60 ? '...' : ''}</small>}
+                    </td>
+                    <td className="text-center">{prog.periode || '-'}</td>
+                    <td className="text-center">{prog.kategori || '-'}</td>
+                    <td className="text-center">
+                      <span className={`badge ${getStatusBadge(prog.status_program)}`}>{prog.status_program || 'Rencana'}</span>
+                    </td>
+                    <td className="text-center">
+                      <button className="btn btn-warning btn-sm" onClick={() => openEditModal(prog)}>✏️ Edit</button>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {programs.map((program, index) => (
-                    <tr key={program.id_program}>
-                      <td>{index + 1}</td>
-                      <td>
-                        <strong>{program.nama_program}</strong>
-                      </td>
-                      <td>
-                        <small>{program.deskripsi_program || "-"}</small>
-                      </td>
-                      <td>{formatPeriode(program.periode)}</td>
-                      <td>
-                        {program.kategori ? (
-                          <span className="badge bg-info text-dark">
-                            {program.kategori}
-                          </span>
-                        ) : (
-                          "-"
-                        )}
-                      </td>
-                      <td>
-                        <span
-                          className={`badge ${getStatusBadge(program.status_program)}`}
-                        >
-                          {program.status_program || "Rencana"}
-                        </span>
-                      </td>
-                      <td>
-                        {program.status_program !== "Selesai" ? (
-                          <div className="d-flex gap-1 flex-wrap">
-                            {/* Tombol Edit */}
-                            <button
-                              className="btn btn-sm btn-warning"
-                              onClick={() => openEditModal(program)}
-                              title="Edit Program"
-                            >
-                              ✏️ Edit
-                            </button>
-
-                            {/* Tombol Isi RAB - hanya untuk role Ketua */}
-                            {user.role === "Ketua" && (
-                              <button
-                                className="btn btn-sm btn-success"
-                                onClick={() => handleIsiRAB(program)}
-                                title="Isi RAB Program"
-                              >
-                                💰 Isi RAB
-                              </button>
-                            )}
-
-                            {/* Tombol Hapus */}
-                            <button
-                              className="btn btn-sm btn-danger"
-                              onClick={() =>
-                                handleDelete(
-                                  program.id_program,
-                                  program.status_program,
-                                )
-                              }
-                              title="Hapus Program"
-                            >
-                              🗑️ Hapus
-                            </button>
-                          </div>
-                        ) : (
-                          <span
-                            className="text-muted"
-                            style={{ fontSize: "12px" }}
-                          >
-                            🔒 Program Selesai
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
       </div>
 
-      {/* ========== Modal Form ========== */}
+      {/* Modal */}
       {showModal && (
-        <div
-          className="modal show d-block"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-        >
-          <div className="modal-dialog modal-lg">
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog">
             <div className="modal-content">
-              <div className="modal-header bg-primary text-white">
-                <h5 className="modal-title">
-                  {editingId
-                    ? "✏️ Edit Program Kerja"
-                    : "➕ Tambah Program Kerja"}
-                </h5>
-                <button
-                  type="button"
-                  className="btn-close btn-close-white"
-                  onClick={() => setShowModal(false)}
-                ></button>
+              <div className="modal-header py-2">
+                <h5 className="modal-title h6">{editingId ? '✏️ Edit Program' : '➕ Tambah Program'}</h5>
+                <button type="button" className="btn-close" onClick={() => setShowModal(false)}></button>
               </div>
               <form onSubmit={handleSubmit}>
                 <div className="modal-body">
                   <div className="mb-3">
-                    <label className="form-label">
-                      Nama Program <span className="text-danger">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      name="nama_program"
-                      value={formData.nama_program}
-                      onChange={handleChange}
-                      required
-                      placeholder="Masukkan nama program kerja"
-                    />
+                    <label className="form-label small">Nama Program <span className="text-danger">*</span></label>
+                    <input type="text" className={`form-control form-control-sm ${errors.nama_program ? 'border-danger' : ''}`} name="nama_program" value={formData.nama_program} onChange={handleChange} />
+                    {errors.nama_program && <small className="text-danger">{errors.nama_program}</small>}
                   </div>
-
                   <div className="mb-3">
-                    <label className="form-label">Deskripsi</label>
-                    <textarea
-                      className="form-control"
-                      name="deskripsi_program"
-                      rows="3"
-                      value={formData.deskripsi_program}
-                      onChange={handleChange}
-                      placeholder="Deskripsi singkat program kerja"
-                    />
+                    <label className="form-label small">Deskripsi</label>
+                    <textarea className="form-control form-control-sm" name="deskripsi_program" rows="2" value={formData.deskripsi_program} onChange={handleChange} />
                   </div>
-
-                  <div className="row">
-                    <div className="col-md-6 mb-3">
-                      <label className="form-label">
-                        Periode <span className="text-danger">*</span>
-                      </label>
-                      <select
-                        className="form-select"
-                        name="periode"
-                        value={formData.periode}
-                        onChange={handleChange}
-                        required
-                      >
-                        <option value={new Date().getFullYear().toString()}>
-                          Tahun Sekarang ({new Date().getFullYear()})
-                        </option>
-                        <option
-                          value={(new Date().getFullYear() + 1).toString()}
-                        >
-                          Tahun Depan ({new Date().getFullYear() + 1})
-                        </option>
-                      </select>
-                    </div>
-                    <div className="col-md-6 mb-3">
-                      <label className="form-label">Kategori</label>
-                      <select
-                        className="form-select"
-                        name="kategori"
-                        value={formData.kategori}
-                        onChange={handleChange}
-                      >
-                        <option value="">-- Pilih Kategori --</option>
-                        {kategoriList.map((kat, idx) => (
-                          <option key={idx} value={kat}>
-                            {kat}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* ========== REVISI 2: Status readonly saat tambah baru ========== */}
                   <div className="mb-3">
-                    <label className="form-label">Status</label>
-                    {editingId ? (
-                      // Saat EDIT: status bisa diubah
-                      <select
-                        className="form-select"
-                        name="status"
-                        value={formData.status}
-                        onChange={handleChange}
-                      >
-                        <option value="Rencana">📝 Rencana</option>
-                        <option value="Berjalan">▶️ Berjalan</option>
-                        <option value="Selesai">✅ Selesai</option>
-                        <option value="Batal">❌ Batal</option>
-                      </select>
-                    ) : (
-                      // Saat TAMBAH: status readonly "Rencana"
-                      <div>
-                        <input
-                          type="text"
-                          className="form-control bg-light"
-                          value="📝 Rencana"
-                          disabled
-                          readOnly
-                        />
-                        <small className="text-muted">
-                          ℹ️ Status otomatis <strong>"Rencana"</strong> untuk
-                          program baru. Status dapat diubah melalui menu Edit
-                          setelah disimpan.
-                        </small>
-                      </div>
-                    )}
+                    <label className="form-label small">Periode <span className="text-danger">*</span></label>
+                    <input type="text" className={`form-control form-control-sm ${errors.periode ? 'border-danger' : ''}`} name="periode" value={formData.periode} onChange={handleChange} placeholder="Contoh: 2026/2027" />
+                    {errors.periode && <small className="text-danger">{errors.periode}</small>}
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label small">Kategori <span className="text-danger">*</span></label>
+                    <select className={`form-select form-select-sm ${errors.kategori ? 'border-danger' : ''}`} name="kategori" value={formData.kategori} onChange={handleChange}>
+                      <option value="">-- Pilih Kategori --</option>
+                      {kategoriList.map(k => <option key={k.id_kategori} value={k.nama_kategori}>{k.nama_kategori}</option>)}
+                    </select>
+                    {errors.kategori && <small className="text-danger">{errors.kategori}</small>}
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label small">Status</label>
+                    <select className="form-select form-select-sm" name="status" value={formData.status} onChange={handleChange}>
+                      <option value="Rencana">📝 Rencana</option>
+                      <option value="Berjalan">▶️ Berjalan</option>
+                    </select>
                   </div>
                 </div>
-                <div className="modal-footer">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => setShowModal(false)}
-                  >
-                    ❌ Batal
-                  </button>
-                  <button type="submit" className="btn btn-primary">
-                    💾 {editingId ? "Simpan Perubahan" : "Tambah Program"}
+                <div className="modal-footer py-2">
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowModal(false)}>❌ Batal</button>
+                  <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>
+                    {saving ? '⏳ Menyimpan...' : '💾 Simpan'}
                   </button>
                 </div>
               </form>
