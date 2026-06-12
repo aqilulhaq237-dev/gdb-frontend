@@ -242,6 +242,15 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
     e.preventDefault();
     setError("");
 
+    console.log("=== DEBUG RAB ===");
+    console.log("jenis:", formData.jenis);
+    console.log("rabList length:", rabList.length);
+    console.log("selectedRAB:", selectedRAB);
+    console.log(
+      "Kondisi validasi:",
+      formData.jenis === "Keluar" && rabList.length > 0 && !selectedRAB,
+    );
+
     if (!formData.id_program) {
       swalWarning("Perhatian!", "Silakan pilih program kerja terlebih dahulu!");
       return;
