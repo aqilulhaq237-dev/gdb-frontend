@@ -11,7 +11,6 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
   const [formData, setFormData] = useState({
     id_program: "",
     jenis: "Masuk",
@@ -423,9 +422,6 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
       )}
 
       {/* Success/Error Messages */}
-      {successMessage && (
-        <div className="alert alert-success py-2 mb-3 small">{successMessage}</div>
-      )}
       {error && (
         <div className="alert alert-danger py-2 mb-3 small">{error}</div>
       )}
