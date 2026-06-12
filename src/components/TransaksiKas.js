@@ -675,12 +675,23 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
                             </a>
                           ) : (
                             <span
-                              className={`badge ${t.status === "Valid" || t.status_validasi === "Valid" ? "bg-success" : "bg-warning text-dark"}`}
+                              className={`badge ${
+                                t.status === "Valid" ||
+                                t.status_validasi === "Valid"
+                                  ? "bg-success"
+                                  : t.status === "Tidak Valid" ||
+                                      t.status_validasi === "Tidak Valid"
+                                    ? "bg-danger"
+                                    : "bg-warning text-dark"
+                              }`}
                             >
                               {t.status === "Valid" ||
                               t.status_validasi === "Valid"
                                 ? "✅ Valid"
-                                : "⏳ Pending"}
+                                : t.status === "Tidak Valid" ||
+                                    t.status_validasi === "Tidak Valid"
+                                  ? "❌ Ditolak"
+                                  : "⏳ Pending"}
                             </span>
                           )}
                         </td>
