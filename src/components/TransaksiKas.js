@@ -298,10 +298,15 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
       }
 
       if (editingId) {
+        // ✅ Jika transaksi ditolak, edit → status jadi Pending
+        formDataToSend.append("status", "Pending");
         await API.put(`/transaksi/${editingId}`, formDataToSend, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        swalSukses("Berhasil!", "Transaksi berhasil diubah!");
+        swalSukses(
+          "Berhasil!",
+          "Transaksi berhasil diubah! Menunggu konfirmasi Ketua.",
+        );
       } else {
         await API.post("/transaksi", formDataToSend, {
           headers: { "Content-Type": "multipart/form-data" },
