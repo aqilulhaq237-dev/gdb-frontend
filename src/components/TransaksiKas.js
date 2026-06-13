@@ -298,11 +298,22 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
       }
 
       if (editingId) {
-        // ✅ Hapus status lama, ganti ke Pending
-        formDataToSend.delete("status");
-        formDataToSend.append("status", "Pending");
+        // ✅ Buat FormData baru dengan semua field + status Pending
+        const editFormData = new FormData();
+        editFormData.append("id_program", formData.id_program);
+        editFormData.append("id_pengguna", user.id_user);
+        editFormData.append("jenis", formData.jenis);
+        editFormData.append("nominal", formData.nominal);
+        editFormData.append("tanggal", formData.tanggal);
+        editFormData.append("keterangan", finalKeterangan);
+        editFormData.append("status", "Pending");
+        editFormData.append("status_validasi", "Pending"); // ✅ Tambah ini juga
 
-        await API.put(`/transaksi/${editingId}`, formDataToSend, {
+        if (formData.bukti_file) {
+          editFormData.append("bukti_file", formData.bukti_file);
+        }
+
+        await API.put(`/transaksi/${editingId}`, editFormData, {
           headers: { "Content-Type": "multipart/form-data" },
         });
         swalSukses(
