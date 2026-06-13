@@ -451,17 +451,7 @@ function Dashboard({ user, onLogout, onNavigate }) {
                           <strong>{log.pengguna || "-"}</strong>
                         </td>
                         <td className="text-center">
-                          <span
-                            className="badge small"
-                            style={
-                              log.aktivitas === "Login"
-                                ? {
-                                    backgroundColor: "#6A1B9A",
-                                    color: "#FFFFFF",
-                                  }
-                                : {}
-                            }
-                          >
+                          <span className={`badge small ${info.badge}`}>
                             {info.icon} {log.aktivitas}
                           </span>
                         </td>
