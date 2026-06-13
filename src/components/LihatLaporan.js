@@ -121,6 +121,13 @@ function LihatLaporan({ user, onLogout, onNavigate }) {
     }).format(angka || 0);
   };
 
+  const cleanKeterangan = (keterangan) => {
+    if (!keterangan) return "-";
+    let cleaned = keterangan.replace(/\[RAB:\d+\]\s*/g, "");
+    cleaned = cleaned.replace(/\[(Saldo|Sponsorship)\]\s*/g, "");
+    return cleaned.trim() || "-";
+  };
+
   const handleExportExcel = () => {
     if (!report) {
       alert("⚠️ Tidak ada laporan untuk diexport!");
@@ -158,7 +165,7 @@ function LihatLaporan({ user, onLogout, onNavigate }) {
       Tanggal: t.tanggal,
       Jenis: t.jenis,
       Nominal: Number(t.nominal || 0).toLocaleString("id-ID"),
-      Keterangan: t.keterangan || "-",
+      Keterangan: cleanKeterangan(t.keterangan),
       Bukti: t.bukti_file ? `${BASE_URL}/uploads/${t.bukti_file}` : "-",
     }));
 
@@ -483,7 +490,7 @@ function LihatLaporan({ user, onLogout, onNavigate }) {
                           </span>
                         </td>
                         <td className="text-end">{formatRupiah(t.nominal)}</td>
-                        <td>{t.keterangan || "-"}</td>
+                        <td>{cleanKeterangan(t.keterangan)}</td>
                         <td className="text-center">
                           {t.bukti_file ? (
                             <a

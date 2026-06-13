@@ -106,6 +106,14 @@ function Dashboard({ user, onLogout, onNavigate }) {
       currency: "IDR",
       minimumFractionDigits: 0,
     }).format(angka || 0);
+
+  const cleanKeterangan = (keterangan) => {
+    if (!keterangan) return "-";
+    let cleaned = keterangan.replace(/\[RAB:\d+\]\s*/g, "");
+    cleaned = cleaned.replace(/\[(Saldo|Sponsorship)\]\s*/g, "");
+    return cleaned.trim() || "-";
+  };
+
   const formatDate = (d) =>
     d
       ? new Date(d).toLocaleDateString("id-ID", {
@@ -374,9 +382,9 @@ function Dashboard({ user, onLogout, onNavigate }) {
               <table className="table table-bordered table-hover align-middle mb-0 small">
                 <thead className="table-light text-center">
                   <tr>
-                    <th>Tanggal</th>
                     <th>Program</th>
                     <th>Jenis</th>
+                    <th>Keterangan</th>
                     <th>Nominal</th>
                     <th>Status</th>
                   </tr>
@@ -393,6 +401,7 @@ function Dashboard({ user, onLogout, onNavigate }) {
                           {t.jenis}
                         </span>
                       </td>
+                      <td>{cleanKeterangan(t.keterangan)}</td>
                       <td className="text-end">{formatRupiah(t.nominal)}</td>
                       <td className="text-center">
                         <span
