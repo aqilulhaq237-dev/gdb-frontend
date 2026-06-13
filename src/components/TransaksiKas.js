@@ -246,7 +246,8 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
       return;
     }
 
-    if (formData.jenis === "Keluar" && !selectedRAB) {
+    // ✅ Validasi RAB hanya saat TAMBAH baru, bukan EDIT
+    if (formData.jenis === "Keluar" && !editingId && !selectedRAB) {
       swalWarning(
         "Perhatian!",
         "Silakan pilih item dari Daftar Biaya RAB terlebih dahulu!",
