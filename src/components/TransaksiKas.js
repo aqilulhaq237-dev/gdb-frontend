@@ -298,8 +298,10 @@ function TransaksiKas({ user, onLogout, onNavigate }) {
       }
 
       if (editingId) {
-        // ✅ Jika transaksi ditolak, edit → status jadi Pending
+        // ✅ Hapus status lama, ganti ke Pending
+        formDataToSend.delete("status");
         formDataToSend.append("status", "Pending");
+
         await API.put(`/transaksi/${editingId}`, formDataToSend, {
           headers: { "Content-Type": "multipart/form-data" },
         });
