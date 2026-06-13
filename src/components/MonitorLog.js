@@ -125,23 +125,23 @@ function MonitorLog({ user, onLogout, onNavigate }) {
   const getAktivitasInfo = (aktivitas) => {
     switch (aktivitas) {
       case "Login":
-        return { icon: "🔑", badge: "bg-purple text-white" };
+        return { icon: "🔑", badge: "badge-login" };
       case "Logout":
-        return { icon: "🚪", badge: "bg-secondary text-white" };
+        return { icon: "🚪", badge: "badge-logout" };
       case "Tambah":
-        return { icon: "➕", badge: "bg-primary text-white" };
+        return { icon: "➕", badge: "badge-tambah" };
       case "Ubah":
-        return { icon: "✏️", badge: "bg-warning text-dark" };
+        return { icon: "✏️", badge: "badge-ubah" };
       case "Hapus":
-        return { icon: "🗑️", badge: "bg-danger text-white" };
+        return { icon: "🗑️", badge: "badge-hapus" };
       case "Transaksi":
-        return { icon: "💰", badge: "bg-info text-dark" };
+        return { icon: "💰", badge: "badge-transaksi" };
       case "Konfirmasi":
-        return { icon: "✅", badge: "bg-success text-white" };
+        return { icon: "✅", badge: "badge-konfirmasi" };
       case "Tolak":
-        return { icon: "❌", badge: "bg-danger text-white" };
+        return { icon: "❌", badge: "badge-tolak" };
       default:
-        return { icon: "📋", badge: "bg-light text-dark" };
+        return { icon: "📋", badge: "badge-default" };
     }
   };
 
