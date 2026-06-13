@@ -461,48 +461,12 @@ body {
 }
 
 /* === BADGE AKTIVITAS === */
-.badge-login {
-  background-color: #6A1B9A !important;
-  color: #FFFFFF !important;
-  font-weight: 600;
-}
-.badge-logout {
-  background-color: #546E7A !important;
-  color: #FFFFFF !important;
-  font-weight: 600;
-}
-.badge-tambah {
-  background-color: #1565C0 !important;
-  color: #FFFFFF !important;
-  font-weight: 600;
-}
-.badge-ubah {
-  background-color: #EF6C00 !important;
-  color: #FFFFFF !important;
-  font-weight: 600;
-}
-.badge-hapus {
-  background-color: #C62828 !important;
-  color: #FFFFFF !important;
-  font-weight: 600;
-}
-.badge-transaksi {
-  background-color: #00838F !important;
-  color: #FFFFFF !important;
-  font-weight: 600;
-}
-.badge-konfirmasi {
-  background-color: #2E7D32 !important;
-  color: #FFFFFF !important;
-  font-weight: 600;
-}
-.badge-tolak {
-  background-color: #B71C1C !important;
-  color: #FFFFFF !important;
-  font-weight: 600;
-}
-.badge-default {
-  background-color: #607D8B !important;
-  color: #FFFFFF !important;
-  font-weight: 600;
-}
+.badge-login { background-color: #7B1FA2 !important; color: #FFFFFF !important; font-weight: 700; }
+.badge-logout { background-color: #455A64 !important; color: #FFFFFF !important; font-weight: 700; }
+.badge-tambah { background-color: #0D47A1 !important; color: #FFFFFF !important; font-weight: 700; }
+.badge-ubah { background-color: #E65100 !important; color: #FFFFFF !important; font-weight: 700; }
+.badge-hapus { background-color: #B71C1C !important; color: #FFFFFF !important; font-weight: 700; }
+.badge-transaksi { background-color: #004D40 !important; color: #FFFFFF !important; font-weight: 700; }
+.badge-konfirmasi { background-color: #1B5E20 !important; color: #FFFFFF !important; font-weight: 700; }
+.badge-tolak { background-color: #880E4F !important; color: #FFFFFF !important; font-weight: 700; }
+.badge-default { background-color: #37474F !important; color: #FFFFFF !important; font-weight: 700; }
